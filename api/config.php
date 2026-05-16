@@ -5,11 +5,11 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // Database Configuration - Railway compatible
-define('DB_HOST', getenv('MYSQLHOST') ?: 'localhost');
+define('DB_HOST', getenv('MYSQLHOST') ?: 'yamanote.proxy.rlwy.net');
 define('DB_USER', getenv('MYSQLUSER') ?: 'root');
-define('DB_PASS', getenv('MYSQLPASSWORD') ?: '');
-define('DB_NAME', getenv('MYSQLDATABASE') ?: 'crm_checklist');
-define('DB_PORT', getenv('MYSQLPORT') ?: 3306);
+define('DB_PASS', getenv('MYSQLPASSWORD') ?: 'ahFYtSstCghtlLjIzkwRJJaTHXJifVdY');
+define('DB_NAME', getenv('MYSQLDATABASE') ?: 'railway');
+define('DB_PORT', getenv('MYSQLPORT') ?: 58498);
 
 // Create connection
 function getConnection() {
