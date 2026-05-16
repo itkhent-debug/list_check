@@ -4,7 +4,7 @@ setCorsHeaders();
 
 $conn = getConnection();
 
-// Create users table if not exists
+// Ensure users table has all required columns
 $conn->query("CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
@@ -17,10 +17,12 @@ $conn->query("CREATE TABLE IF NOT EXISTS users (
     last_login DATETIME DEFAULT NULL
 )");
 
-// Add columns if they don't exist (for existing tables)
-$conn->query("ALTER TABLE users ADD COLUMN IF NOT EXISTS picture VARCHAR(500) DEFAULT NULL");
-$conn->query("ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(50) DEFAULT 'local'");
-$conn->query("ALTER TABLE users MODIFY COLUMN password_hash VARCHAR(255) DEFAULT NULL");
+// Note: Standard MySQL doesn't support 'ADD COLUMN IF NOT EXISTS'.
+// Since we have the CREATE TABLE IF NOT EXISTS above with all columns, 
+// we only need to worry if the table was created before we added columns.
+try { $conn->query("ALTER TABLE users ADD COLUMN picture VARCHAR(500) DEFAULT NULL"); } catch(Exception $e) {}
+try { $conn->query("ALTER TABLE users ADD COLUMN auth_provider VARCHAR(50) DEFAULT 'local'"); } catch(Exception $e) {}
+try { $conn->query("ALTER TABLE users MODIFY COLUMN password_hash VARCHAR(255) DEFAULT NULL"); } catch(Exception $e) {}
 
 // Seed default user if table is empty
 $check = $conn->query("SELECT COUNT(*) as cnt FROM users");
