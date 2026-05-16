@@ -1,0 +1,4201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Checklist</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        :root {
+            /* Dark mode (default) */
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #171717;
+            --bg-tertiary: #1a1a1a;
+            --bg-card: #171717;
+            --text-primary: #e5e5e5;
+            --text-secondary: #a3a3a3;
+            --text-muted: #737373;
+            --border-color: #333;
+            --border-light: #2a2a2a;
+            --header-bg: linear-gradient(135deg, #171717, #1a1a1a);
+            --sidebar-bg: #171717;
+            --3d-text-color: #131313;
+            --3d-bg: #e7e5e4;
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #f5f5f5;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #fafafa;
+            --bg-card: #ffffff;
+            --text-primary: #171717;
+            --text-secondary: #525252;
+            --text-muted: #737373;
+            --border-color: #e5e5e5;
+            --border-light: #d4d4d4;
+            --header-bg: linear-gradient(135deg, #ffffff, #f5f5f5);
+            --sidebar-bg: #ffffff;
+            --3d-text-color: #131313;
+            --3d-bg: #e7e5e4;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: var(--3d-bg);
+            min-height: 100vh;
+            color: var(--text-primary);
+            padding: 0;
+            margin: 0;
+            position: relative;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        .bg-text {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 8vw;
+            font-weight: 900;
+            text-transform: uppercase;
+            white-space: nowrap;
+            color: var(--3d-text-color);
+            background: transparent;
+            letter-spacing: .15em;
+            text-shadow: 1px -1px 0 #767676, -1px 2px 1px #737272, -2px 4px 1px #767474, -3px 6px 1px #787777, -4px 8px 1px #7b7a7a, -5px 10px 1px #7f7d7d, -6px 12px 1px #828181, -7px 14px 1px #868585, -8px 16px 1px #8b8a89, -9px 18px 1px #8f8e8d, -10px 20px 1px #949392, -11px 22px 1px #999897, -12px 24px 1px #9e9c9c, -13px 26px 1px #a3a1a1, -14px 28px 1px #a8a6a6, -15px 30px 1px #adabab, -16px 32px 1px #b2b1b0, -17px 34px 1px #b7b6b5, -18px 36px 1px #bcbbba, -19px 38px 1px #c1bfbf, -20px 40px 1px #c6c4c4, -21px 42px 1px #cbc9c8, -22px 44px 1px #cfcdcd, -23px 46px 1px #d4d2d1, -24px 48px 1px #d8d6d5, -25px 50px 1px #dbdad9, -26px 52px 1px #dfdddc, -27px 54px 1px #e2e0df, -28px 56px 1px #e4e3e2;
+            z-index: 0;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        /* Dashboard Grid Layout */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            grid-template-rows: auto 1fr;
+            grid-template-areas:
+                "header header"
+                "sidebar main";
+            min-height: 100vh;
+            gap: 0;
+            position: relative;
+            z-index: 1;
+        }
+
+        .dashboard-header {
+            grid-area: header;
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            transition: background 0.3s ease, border-color 0.3s ease;
+        }
+
+        /* Theme Toggle Button */
+        .theme-toggle {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: none;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            border: 1px solid var(--border-color);
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(255, 212, 59, 0.3);
+        }
+
+        .theme-toggle svg {
+            width: 20px;
+            height: 20px;
+            transition: transform 0.3s ease;
+        }
+
+        .theme-toggle:hover svg {
+            transform: rotate(15deg);
+        }
+
+        .sun-icon, .moon-icon {
+            display: none;
+        }
+
+        [data-theme="light"] .moon-icon {
+            display: block;
+        }
+
+        [data-theme="light"] .sun-icon {
+            display: none;
+        }
+
+        :root .sun-icon {
+            display: block;
+        }
+
+        :root .moon-icon {
+            display: none;
+        }
+
+        .dashboard-header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* Animated Title Button */
+        .btn-title,
+        .btn-title *,
+        .btn-title :after,
+        .btn-title :before,
+        .btn-title:after,
+        .btn-title:before {
+            border: 0 solid;
+            box-sizing: border-box;
+        }
+
+        .btn-title {
+            -webkit-tap-highlight-color: transparent;
+            background-color: #000;
+            color: #fff;
+            cursor: default;
+            padding: 1.2rem 2.5rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            display: inline-block;
+            border-radius: 0;
+            position: relative;
+            overflow: hidden;
+            font-family: 'Roboto', sans-serif;
+            font-size: 20px;
+            line-height: 1.5;
+            margin: 0;
+            border: 1px solid #333;
+        }
+
+        .btn-title .original {
+            background: #fff;
+            color: #000;
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-content: center;
+            transition: transform 0.2s cubic-bezier(0.87, 0, 0.13, 1);
+            font-weight: 700;
+        }
+
+        .btn-title:hover .original {
+            transform: translateY(100%);
+        }
+
+        .btn-title .letters {
+            display: flex;
+            justify-content: center;
+            height: 100%;
+        }
+
+        .btn-title span {
+            opacity: 0;
+            transition: opacity 0.2s, transform 0.2s cubic-bezier(0.87, 0, 0.13, 1);
+            transition-delay: 0.1s;
+        }
+
+        .btn-title:hover span {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .btn-title:hover span:nth-child(1) { transition-delay: 0.02s; }
+        .btn-title:hover span:nth-child(2) { transition-delay: 0.04s; }
+        .btn-title:hover span:nth-child(3) { transition-delay: 0.06s; }
+        .btn-title:hover span:nth-child(4) { transition-delay: 0.08s; }
+        .btn-title:hover span:nth-child(5) { transition-delay: 0.10s; }
+        .btn-title:hover span:nth-child(6) { transition-delay: 0.12s; }
+        .btn-title:hover span:nth-child(7) { transition-delay: 0.14s; }
+        .btn-title:hover span:nth-child(8) { transition-delay: 0.16s; }
+        .btn-title:hover span:nth-child(9) { transition-delay: 0.18s; }
+        .btn-title:hover span:nth-child(10) { transition-delay: 0.20s; }
+        .btn-title:hover span:nth-child(11) { transition-delay: 0.22s; }
+        .btn-title:hover span:nth-child(12) { transition-delay: 0.24s; }
+        .btn-title:hover span:nth-child(13) { transition-delay: 0.26s; }
+
+        .btn-title span.space {
+            width: 0.4em;
+        }
+
+        .dashboard-sidebar {
+            grid-area: sidebar;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            transition: background 0.3s ease, border-color 0.3s ease;
+        }
+
+        .dashboard-main {
+            grid-area: main;
+            padding: 20px;
+            overflow-y: auto;
+            background: var(--bg-primary);
+            transition: background 0.3s ease;
+        }
+
+        /* Sidebar Panels */
+        .sidebar-panel {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid var(--border-light);
+            transition: background 0.3s ease, border-color 0.3s ease;
+        }
+
+        .sidebar-panel h3 {
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sidebar-panel h3::before {
+            content: '';
+            width: 4px;
+            height: 16px;
+            background: #3b82f6;
+            border-radius: 2px;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid var(--border-light);
+            text-align: center;
+            transition: background 0.3s ease, border-color 0.3s ease;
+        }
+
+        .stat-card .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .stat-card .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-card.stat-primary .stat-value { color: #3b82f6; }
+        .stat-card.stat-success .stat-value { color: #22c55e; }
+        .stat-card.stat-warning .stat-value { color: #f59e0b; }
+
+        /* Main Content Panel */
+        .main-panel {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--border-light);
+            transition: background 0.3s ease, border-color 0.3s ease;
+        }
+
+        .main-panel h2 {
+            color: var(--text-primary);
+            font-size: 1.1rem;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .main-panel h2::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: #22c55e;
+            border-radius: 2px;
+        }
+
+        /* Action Buttons Grid */
+        .actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: var(--text-primary);
+            font-size: 1.75rem;
+        }
+
+        .panel {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+            transition: background 0.3s ease, border-color 0.3s ease;
+        }
+
+        .panel h2 {
+            color: var(--text-primary);
+            margin-bottom: 16px;
+            font-size: 1.1rem;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: end;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-group.flex-1 {
+            flex: 1;
+            min-width: 180px;
+        }
+
+        label {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        input, select {
+            border-radius: 0.8rem;
+            background: var(--bg-tertiary);
+            padding: 1rem;
+            border: 1px solid var(--border-light);
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            transition: all 0.2s ease-in-out;
+            outline: none;
+        }
+
+        input:focus, select:focus {
+            border: 1px solid #3b82f6;
+            box-shadow:
+                inset 0px 0px 10px rgba(59, 130, 246, 0.5),
+                inset 0px 0px 10px rgba(96, 165, 250, 0.5),
+                0px 0px 50px rgba(59, 130, 246, 0.3),
+                0px 0px 100px rgba(96, 165, 250, 0.2);
+        }
+
+        input::placeholder, select::placeholder {
+            color: #6b7280;
+        }
+
+        /* Custom Date Picker */
+        .date-picker {
+            position: relative;
+            display: inline-block;
+        }
+
+        .date-picker-input {
+            cursor: pointer;
+            min-width: 180px;
+            padding-right: 40px !important;
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="%236b7280" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>');
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+        }
+
+        .date-picker-input:focus {
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="%233b82f6" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>');
+        }
+
+        .calendar-dropdown {
+            position: fixed;
+            z-index: 9999;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+            min-width: 280px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+        }
+
+        .calendar-dropdown.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        @keyframes dropdownSlide {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .calendar-header .month-year {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+        }
+
+        .calendar-nav {
+            display: flex;
+            gap: 4px;
+        }
+
+        .calendar-nav button {
+            background: var(--bg-tertiary);
+            border: none;
+            border-radius: 5px;
+            color: var(--text-primary);
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.3s;
+        }
+
+        .calendar-nav button:hover {
+            background: var(--border-color);
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+        }
+
+        .calendar-day-header {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            font-weight: 500;
+            padding: 6px 0;
+        }
+
+        .calendar-day {
+            text-align: center;
+            padding: 7px;
+            border-radius: 5px;
+            cursor: pointer;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            transition: 0.3s;
+        }
+
+        .calendar-day:hover {
+            background: #323741;
+        }
+
+        .calendar-day.other-month {
+            color: #4b5563;
+        }
+
+        .calendar-day.today {
+            border: 1px solid #3b82f6;
+        }
+
+        .calendar-day.selected {
+            background: #fff;
+            color: #000;
+            font-weight: 600;
+        }
+
+        .calendar-day.selected:hover {
+            background: #e5e5e5;
+        }
+
+        /* Enhanced Time Picker */
+        .time-picker {
+            position: relative;
+            display: inline-block;
+        }
+
+        .time-picker-input {
+            cursor: pointer;
+            min-width: 140px;
+            padding-right: 40px !important;
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="%236b7280" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>');
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+        }
+
+        .time-picker-input:focus {
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="%233b82f6" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>');
+        }
+
+        .time-dropdown {
+            position: fixed;
+            z-index: 9999;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+            min-width: 200px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+        }
+
+        .time-dropdown.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .time-dropdown-header {
+            text-align: center;
+            color: #fff;
+            font-weight: 600;
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+        }
+
+        .time-columns {
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+        }
+
+        .time-column {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .time-column-label {
+            color: var(--text-muted);
+            font-size: 0.65rem;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+
+        .time-scroll {
+            height: 140px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #323741 transparent;
+        }
+
+        .time-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .time-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .time-scroll::-webkit-scrollbar-thumb {
+            background: #323741;
+            border-radius: 2px;
+        }
+
+        .time-option {
+            padding: 6px 14px;
+            text-align: center;
+            cursor: pointer;
+            color: var(--text-primary);
+            border-radius: 5px;
+            font-size: 0.85rem;
+            transition: 0.3s;
+        }
+
+        .time-option:hover {
+            background: #323741;
+        }
+
+        .time-option.selected {
+            background: #fff;
+            color: #000;
+            font-weight: 600;
+        }
+
+        .time-divider {
+            color: #fff;
+            font-size: 1.2rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            padding-top: 18px;
+        }
+
+        /* Custom styled select dropdown */
+        select {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="%233b82f6" stroke-width="2"><polyline points="6,9 12,15 18,9"/></svg>');
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 36px;
+            cursor: pointer;
+        }
+
+        /* Custom Select Dropdown with Glider */
+        .custom-select {
+            position: relative;
+            width: 100%;
+            cursor: pointer;
+            color: var(--text-primary);
+        }
+
+        .custom-select-selected {
+            background: var(--bg-tertiary);
+            padding: 10px 14px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: 0.3s;
+            font-size: 0.95rem;
+        }
+
+        .custom-select-selected:hover {
+            background: #323741;
+        }
+
+        .custom-select-selected .arrow {
+            width: 12px;
+            height: 12px;
+            transition: 0.3s;
+        }
+
+        .custom-select.open .custom-select-selected .arrow {
+            transform: rotate(180deg);
+        }
+
+        .custom-select-options {
+            --main-color: #3b82f6;
+            --main-color-opacity: rgba(59, 130, 246, 0.1);
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px 0 8px 8px;
+            z-index: 1000;
+            max-height: 280px;
+            overflow-y: auto;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+            scrollbar-width: thin;
+            scrollbar-color: #323741 transparent;
+        }
+
+        .custom-select-options::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .custom-select-options::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .custom-select-options::-webkit-scrollbar-thumb {
+            background: #323741;
+            border-radius: 3px;
+        }
+
+        .custom-select.open .custom-select-options {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .custom-select-options .glider-container {
+            position: absolute;
+            left: 0;
+            top: 8px;
+            bottom: 8px;
+            background: linear-gradient(0deg, rgba(0,0,0,0) 0%, rgba(40,40,40,1) 50%, rgba(0,0,0,0) 100%);
+            width: 2px;
+        }
+
+        .custom-select-options .glider {
+            position: absolute;
+            height: 42px;
+            width: 100%;
+            background: linear-gradient(0deg, rgba(0,0,0,0) 0%, var(--main-color) 50%, rgba(0,0,0,0) 100%);
+            transition: transform 0.4s cubic-bezier(0.37, 1.95, 0.66, 0.56);
+            top: 0;
+        }
+
+        .custom-select-options .glider::before {
+            content: "";
+            position: absolute;
+            height: 60%;
+            width: 300%;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--main-color);
+            filter: blur(12px);
+            opacity: 0.6;
+        }
+
+        .custom-select-options .glider::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, var(--main-color-opacity) 0%, rgba(0,0,0,0) 100%);
+        }
+
+        .custom-select-option {
+            padding: 10px 14px;
+            border-radius: 0 5px 5px 0;
+            transition: 0.3s;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: #888;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .custom-select-option:hover {
+            color: #ccc;
+        }
+
+        .custom-select-option.selected {
+            color: var(--main-color);
+        }
+
+        /* Custom Tooltip with Branch Line */
+        .custom-tooltip {
+            position: fixed;
+            z-index: 9999;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            display: flex;
+            align-items: center;
+        }
+
+        .custom-tooltip.show {
+            opacity: 1;
+        }
+
+        .custom-tooltip .tooltip-dot {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #3b82f6;
+            border-radius: 50%;
+            left: -4px;
+            top: 26px;
+            opacity: 0;
+            box-shadow: 0 0 8px #3b82f6;
+            transition: opacity 0.2s ease;
+        }
+
+        .custom-tooltip.show .tooltip-dot {
+            opacity: 1;
+        }
+
+        .custom-tooltip .tooltip-line {
+            width: 80px;
+            height: 60px;
+            overflow: visible;
+            flex-shrink: 0;
+        }
+
+        .custom-tooltip .tooltip-line path {
+            fill: none;
+            stroke: #3b82f6;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-dasharray: 150;
+            stroke-dashoffset: 150;
+            transition: stroke-dashoffset 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .custom-tooltip.show .tooltip-line path {
+            stroke-dashoffset: 0;
+        }
+
+        .custom-tooltip .tooltip-content {
+            background: #161b22;
+            border: 1px solid #3b82f6;
+            padding: 12px 16px;
+            border-radius: 6px;
+            color: #c9d1d9;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            opacity: 0;
+            transform: translateX(-10px);
+            transition: opacity 0.3s ease 0.2s, transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.2s;
+            position: relative;
+        }
+
+        .custom-tooltip.show .tooltip-content {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .custom-tooltip .tooltip-content::before {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #3b82f6;
+            border-radius: 50%;
+            left: -4px;
+            top: 50%;
+            transform: translateY(-50%);
+            box-shadow: 0 0 8px #3b82f6;
+        }
+
+        /* Left-positioned tooltip (for elements on right side of screen) */
+        .custom-tooltip.tooltip-left {
+            flex-direction: row-reverse;
+        }
+
+        .custom-tooltip.tooltip-left .tooltip-dot {
+            left: auto;
+            right: -4px;
+            top: 26px;
+        }
+
+        .custom-tooltip.tooltip-left .tooltip-content {
+            transform: translateX(10px);
+        }
+
+        .custom-tooltip.tooltip-left.show .tooltip-content {
+            transform: translateX(0);
+        }
+
+        .custom-tooltip.tooltip-left .tooltip-content::before {
+            left: auto;
+            right: -4px;
+        }
+
+        .custom-tooltip.tooltip-left .tooltip-line {
+            transform: scaleX(-1);
+        }
+
+        /* Bottom-positioned tooltip (for elements at top of screen) */
+        .custom-tooltip.tooltip-bottom {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .custom-tooltip.tooltip-bottom .tooltip-dot {
+            left: 0px;
+            top: 0px;
+        }
+
+        .custom-tooltip.tooltip-bottom .tooltip-line {
+            width: 90px;
+            height: 90px;
+        }
+
+        .custom-tooltip.tooltip-bottom .tooltip-content {
+            transform: translateY(10px);
+            margin-left: 76px;
+            margin-top: -10px;
+            max-width: none;
+            white-space: nowrap;
+        }
+
+        .custom-tooltip.tooltip-bottom.show .tooltip-content {
+            transform: translateY(0);
+        }
+
+        .custom-tooltip.tooltip-bottom .tooltip-content::before {
+            left: -4px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        /* Batch Name Pointer Arrow */
+        .batch-name-arrow {
+            position: fixed;
+            z-index: 9999;
+            pointer-events: none;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .batch-name-arrow.show {
+            opacity: 1;
+        }
+
+        .batch-name-arrow path {
+            stroke-dasharray: 500;
+            stroke-dashoffset: 500;
+            transition: stroke-dashoffset 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .batch-name-arrow.show path {
+            stroke-dashoffset: 0;
+        }
+
+        /* Google Drive Rotating Button */
+        .gdrive-button {
+            cursor: pointer;
+            border: none;
+            background: linear-gradient(135deg, #4285f4, #34a853);
+            color: #fff;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            overflow: hidden;
+            position: relative;
+            display: grid;
+            place-content: center;
+            transition: background 300ms, transform 200ms;
+            font-weight: 600;
+        }
+
+        .gdrive-button__text {
+            position: absolute;
+            inset: 0;
+            animation: gdrive-text-rotation 8s linear infinite;
+        }
+
+        .gdrive-button__text > span {
+            position: absolute;
+            transform: rotate(calc(25.7deg * var(--index)));
+            inset: 5px;
+            font-size: 7px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .gdrive-button__circle {
+            position: relative;
+            width: 32px;
+            height: 32px;
+            overflow: hidden;
+            background: #171717;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .gdrive-button__circle svg {
+            width: 18px;
+            height: 18px;
+            transition: transform 0.3s ease-in-out;
+        }
+
+        .gdrive-button__icon--copy {
+            position: absolute;
+            transform: translate(-150%, 150%);
+        }
+
+        .gdrive-button:hover {
+            background: #171717;
+            transform: scale(1.1);
+        }
+
+        .gdrive-button:hover .gdrive-button__circle svg:first-child {
+            transform: translate(150%, -150%);
+        }
+
+        .gdrive-button:hover .gdrive-button__icon--copy {
+            transition: transform 0.3s ease-in-out 0.1s;
+            transform: translate(0);
+        }
+
+        @keyframes gdrive-text-rotation {
+            to {
+                rotate: 360deg;
+            }
+        }
+
+        .gdrive-button:active {
+            transform: scale(0.95);
+        }
+
+        /* Logout Expandable Button */
+        .logout-btn {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            width: 42px;
+            height: 42px;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition-duration: .3s;
+            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.199);
+            background-color: #dc2626;
+        }
+
+        .logout-btn .sign {
+            width: 100%;
+            transition-duration: .3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .logout-btn .sign svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .logout-btn .sign svg path {
+            fill: white;
+        }
+
+        .logout-btn .text {
+            position: absolute;
+            right: 0%;
+            width: 0%;
+            opacity: 0;
+            color: white;
+            font-size: 0.9em;
+            font-weight: 600;
+            transition-duration: .3s;
+            white-space: nowrap;
+        }
+
+        .logout-btn:hover {
+            width: 110px;
+            border-radius: 40px;
+            transition-duration: .3s;
+            background-color: #b91c1c;
+        }
+
+        .logout-btn:hover .sign {
+            width: 30%;
+            transition-duration: .3s;
+            padding-left: 12px;
+        }
+
+        .logout-btn:hover .text {
+            opacity: 1;
+            width: 70%;
+            transition-duration: .3s;
+            padding-right: 12px;
+        }
+
+        .logout-btn:active {
+            transform: translate(2px, 2px);
+        }
+
+        select option {
+            background: #171717;
+            color: #fff;
+            padding: 10px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 100%;
+        }
+
+        select option:hover,
+        select option:checked {
+            background: #333;
+        }
+
+        .modal-content select {
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        .btn {
+            position: relative;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: 0.3s ease;
+            background: linear-gradient(to bottom right, #2e8eff 0%, rgba(46, 142, 255, 0) 30%);
+            background-color: rgba(46, 142, 255, 0.2);
+            color: #fff;
+            font-size: 0.9rem;
+            font-weight: 600;
+            padding: 14px 22px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            isolation: isolate;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            inset: 2px;
+            border-radius: 13px;
+            background-color: #1a1a1a;
+            z-index: -1;
+            transition: 0.3s ease;
+        }
+
+        .btn:hover,
+        .btn:focus {
+            background-color: rgba(46, 142, 255, 0.7);
+            box-shadow: 0 0 10px rgba(46, 142, 255, 0.5);
+            outline: none;
+        }
+
+        .btn:hover::before {
+            background-color: #222;
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .btn-success {
+            background: linear-gradient(to bottom right, #22c55e 0%, rgba(34, 197, 94, 0) 30%);
+            background-color: rgba(34, 197, 94, 0.2);
+        }
+
+        .btn-success:hover, .btn-success:focus {
+            background-color: rgba(34, 197, 94, 0.7);
+            box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(to bottom right, #6b7280 0%, rgba(107, 114, 128, 0) 30%);
+            background-color: rgba(107, 114, 128, 0.15);
+        }
+
+        .btn-secondary:hover, .btn-secondary:focus {
+            background-color: rgba(107, 114, 128, 0.6);
+            box-shadow: 0 0 10px rgba(107, 114, 128, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(to bottom right, #dc2626 0%, rgba(220, 38, 38, 0) 30%);
+            background-color: rgba(220, 38, 38, 0.2);
+        }
+
+        .btn-danger:hover, .btn-danger:focus {
+            background-color: rgba(220, 38, 38, 0.7);
+            box-shadow: 0 0 10px rgba(220, 38, 38, 0.5);
+        }
+
+        .btn-primary {
+            background: linear-gradient(to bottom right, #2e8eff 0%, rgba(46, 142, 255, 0) 30%);
+            background-color: rgba(46, 142, 255, 0.2);
+        }
+
+        .btn-primary:hover, .btn-primary:focus {
+            background-color: rgba(46, 142, 255, 0.7);
+            box-shadow: 0 0 10px rgba(46, 142, 255, 0.5);
+        }
+
+        .btn-purple {
+            background: linear-gradient(to bottom right, #7c3aed 0%, rgba(124, 58, 237, 0) 30%);
+            background-color: rgba(124, 58, 237, 0.2);
+        }
+
+        .btn-purple:hover, .btn-purple:focus {
+            background-color: rgba(124, 58, 237, 0.7);
+            box-shadow: 0 0 10px rgba(124, 58, 237, 0.5);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        /* Tag Buttons with Parallax Effect */
+        .tag-btn {
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            transform-style: preserve-3d;
+            perspective: 500px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .tag-btn:hover {
+            transform: translateY(-4px) scale(1.05);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4), 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .tag-btn:active {
+            transform: translateY(-1px) scale(0.98);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .tag-btn.active {
+            box-shadow: 0 4px 12px rgba(255,255,255,0.2), 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .tag-btn.active:hover {
+            box-shadow: 0 8px 25px rgba(255,255,255,0.3), 0 4px 10px rgba(0,0,0,0.4);
+        }
+
+        /* Table */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        td {
+            color: var(--text-primary);
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        tr:hover {
+            background: var(--bg-tertiary);
+        }
+
+        tr.checked {
+            background: var(--bg-secondary);
+        }
+
+        tr.checked td {
+            color: #a3a3a3;
+            text-decoration: line-through;
+        }
+
+        .check-cell {
+            width: 50px;
+            text-align: center;
+        }
+
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            accent-color: #22c55e;
+            cursor: pointer;
+        }
+
+        /* Labels */
+        .label-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .label-warm-up { background: #ec4899; color: #fff; }
+        .label-dynamic-call { background: #3b82f6; color: #fff; }
+        .label-special-text { background: #f472b6; color: #fff; }
+        .label-call-reminder { background: #f97316; color: #fff; }
+        .label-text-reminder { background: #ec4899; color: #fff; }
+        .label-event-day { background: #22c55e; color: #fff; }
+
+        .gap-cell {
+            font-weight: 700;
+            color: #fff;
+        }
+
+        /* Progress */
+        .progress-container {
+            margin-bottom: 20px;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #333;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #22c55e, #16a34a);
+            transition: width 0.3s;
+        }
+
+        .progress-text {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: #a3a3a3;
+            margin-top: 8px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #525252;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            width: 90%;
+            max-width: 450px;
+            border: 1px solid var(--border-color);
+            transition: background 0.3s ease, border-color 0.3s ease;
+        }
+
+        .modal-content h2 {
+            color: var(--text-primary);
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+        }
+
+        .modal-content .form-group {
+            margin-bottom: 16px;
+        }
+
+        .modal-content .form-group label {
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        .modal-content .form-group input,
+        .modal-content .form-group select {
+            width: 100%;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: flex-end;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: #fff;
+            color: #000;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 500;
+            opacity: 0;
+            transition: all 0.3s;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .form-row .form-group {
+                width: 100%;
+                text-align: center;
+            }
+            
+            .form-row .form-group label {
+                text-align: center;
+                display: block;
+            }
+            
+            .form-row .form-group .btn {
+                width: 100%;
+            }
+            
+            .batch-section {
+                text-align: center;
+            }
+            
+            .btn-group {
+                flex-wrap: wrap;
+                gap: 8px;
+                justify-content: center;
+            }
+            
+            .btn-group .btn {
+                flex: 1 1 calc(50% - 8px);
+                min-width: 100px;
+                padding: 8px 12px;
+                font-size: 0.8rem;
+            }
+            
+            h1 {
+                font-size: 1.4rem;
+            }
+            
+            .panel {
+                padding: 16px;
+            }
+            
+            th, td {
+                padding: 8px 6px;
+                font-size: 0.8rem;
+            }
+            
+            .label-badge {
+                font-size: 0.65rem;
+                padding: 3px 6px;
+            }
+            
+            .table-container {
+                margin: 0 -16px;
+                padding: 0 16px;
+            }
+            
+            table {
+                min-width: 800px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            /* Stack layout on mobile */
+            .dashboard {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto 1fr;
+                grid-template-areas:
+                    "header"
+                    "sidebar"
+                    "main";
+            }
+            
+            .dashboard-sidebar {
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+                max-height: none;
+                padding: 12px;
+                gap: 12px;
+            }
+            
+            .dashboard-main {
+                padding: 12px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+            }
+            
+            .stat-card {
+                padding: 12px 8px;
+            }
+            
+            .stat-card .stat-value {
+                font-size: 1.25rem;
+            }
+            
+            .stat-card .stat-label {
+                font-size: 0.65rem;
+            }
+            
+            .actions-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 6px;
+            }
+            
+            .actions-grid .btn {
+                font-size: 0.7rem;
+                padding: 8px 6px;
+            }
+
+            body {
+                padding: 0;
+            }
+            
+            h1 {
+                font-size: 1.2rem;
+                margin-bottom: 20px;
+            }
+            
+            .panel {
+                padding: 12px;
+                border-radius: 8px;
+            }
+            
+            .btn-group {
+                gap: 6px;
+            }
+            
+            .btn-group .btn {
+                flex: 1 1 calc(50% - 6px);
+                padding: 8px 8px;
+                font-size: 0.75rem;
+            }
+            
+            .form-group label {
+                font-size: 0.75rem;
+            }
+            
+            input, select {
+                padding: 8px 10px;
+                font-size: 0.85rem;
+            }
+            
+            .batch-section .form-row {
+                gap: 8px;
+            }
+            
+            .batch-section .btn {
+                width: 100%;
+            }
+            
+            th, td {
+                padding: 6px 4px;
+                font-size: 0.75rem;
+            }
+            
+            .check-cell {
+                width: 35px;
+            }
+            
+            input[type="checkbox"] {
+                width: 16px;
+                height: 16px;
+            }
+            
+            .modal-content {
+                width: 95%;
+                padding: 16px;
+                max-height: 90vh;
+                overflow-y: auto;
+            }
+            
+            .modal-content h2 {
+                font-size: 1rem;
+            }
+            
+            .progress-text {
+                font-size: 0.75rem;
+            }
+
+            .sidebar-panel {
+                padding: 12px;
+            }
+
+            .sidebar-panel h3 {
+                font-size: 0.85rem;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto 1fr;
+                grid-template-areas:
+                    "header"
+                    "sidebar"
+                    "main";
+            }
+            
+            .dashboard-sidebar {
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+            
+            .sidebar-panel {
+                flex: 1;
+                min-width: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-text">CRM CHECKLIST</div>
+    <!-- Custom Tooltip with Branch Line -->
+    <div id="customTooltip" class="custom-tooltip">
+        <div class="tooltip-dot"></div>
+        <svg class="tooltip-line" viewBox="0 0 80 60">
+            <path d="M 0 30 Q 40 30, 80 30"></path>
+        </svg>
+        <div class="tooltip-content" id="tooltipContent"></div>
+    </div>
+
+    <!-- Batch Name Pointer Arrow -->
+    <svg id="batchNameArrow" class="batch-name-arrow">
+        <defs>
+            <marker id="arrowhead" markerWidth="12" markerHeight="10" refX="12" refY="5" orient="auto">
+                <polygon points="0 0, 12 5, 0 10" fill="#f59e0b"/>
+            </marker>
+        </defs>
+        <path id="batchNameArrowPath" stroke="#f59e0b" stroke-width="2.5" fill="none" marker-end="url(#arrowhead)"/>
+    </svg>
+    
+    <div class="dashboard">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <div style="display:flex;gap:10px;align-items:center;">
+                <button class="theme-toggle" id="themeToggle" data-tooltip="Toggle theme" style="display: none;">
+                    <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                </button>
+                <span id="userDisplay" style="color:var(--text-secondary);font-size:0.85rem;"></span>
+                <button class="gdrive-button" onclick="window.open('https://drive.google.com/drive/folders/1qz3Nel5SqQpJN2XFE_F20v-KDWLb6wzf?usp=sharing', '_blank')">
+                    <div class="gdrive-button__text">
+                        <span style="--index: 0">G</span>
+                        <span style="--index: 1">O</span>
+                        <span style="--index: 2">O</span>
+                        <span style="--index: 3">G</span>
+                        <span style="--index: 4">L</span>
+                        <span style="--index: 5">E</span>
+                        <span style="--index: 6">•</span>
+                        <span style="--index: 7">D</span>
+                        <span style="--index: 8">R</span>
+                        <span style="--index: 9">I</span>
+                        <span style="--index: 10">V</span>
+                        <span style="--index: 11">E</span>
+                        <span style="--index: 12">•</span>
+                        <span style="--index: 13">•</span>
+                    </div>
+                    <div class="gdrive-button__circle">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 87.3 78">
+                            <path fill="#0066da" d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5l5.4 9.35z"/>
+                            <path fill="#00ac47" d="M43.65 25L29.9 1.2C28.55 2 27.4 3.1 26.6 4.5L1.2 48.5C.4 49.9 0 51.45 0 53h27.5L43.65 25z"/>
+                            <path fill="#ea4335" d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75L86.1 57c.8-1.4 1.2-2.95 1.2-4.5H59.85L73.55 76.8z"/>
+                            <path fill="#ffba00" d="M59.8 53h27.5c0-1.55-.4-3.1-1.2-4.5L60.65 3.7c-.8-1.4-1.95-2.5-3.3-3.3L43.6 24.2 59.8 53z"/>
+                            <path fill="#00ac47" d="M59.8 53H27.5l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2L59.8 53z"/>
+                        </svg>
+                    </div>
+                </button>
+                <button class="btn btn-purple" id="usersBtn" onclick="openUserManagement()" style="display:none;">Users</button>
+                <button class="logout-btn" onclick="logoutUser()">
+                    <div class="sign">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M17 16L21 12M21 12L17 8M21 12H9M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <span class="text">Logout</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Sidebar -->
+        <aside class="dashboard-sidebar">
+            <!-- Batch Management Panel -->
+            <div class="sidebar-panel">
+                <h3>Batch Management</h3>
+                <div class="form-group" style="margin-bottom:12px;">
+                    <label title="Name your batch for easy identification">Batch Name</label>
+                    <input type="text" id="batchName" placeholder="e.g., JACKSON ACTIVATION" title="Enter a descriptive name for this batch" oninput="render()" style="width:100%;">
+                </div>
+                <div style="display:flex;gap:8px;margin-bottom:12px;">
+                    <button class="btn btn-success" id="saveBtn" onclick="saveBatch()" title="Save current items" style="flex:1;" onmouseenter="showAddRowArrow()" onmouseleave="hideAddRowArrow()">Save</button>
+                    <button class="btn btn-secondary" onclick="newBatch()" title="Start new batch" style="flex:1;">New</button>
+                </div>
+                <div class="form-group" style="margin-bottom:12px;">
+                    <label title="Load a previously saved batch">Load Batch</label>
+                    <div class="custom-select" id="batchSelectWrapper" onclick="toggleBatchSelect()">
+                        <div class="custom-select-selected">
+                            <span id="batchSelectText">-- Select Batch --</span>
+                            <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6,9 12,15 18,9"/></svg>
+                        </div>
+                        <div class="custom-select-options" id="batchSelectOptions">
+                            <div class="glider-container"><div class="glider" id="batchGlider"></div></div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="batchSelectValue">
+                </div>
+                <button class="btn btn-danger" style="width:100%;" onclick="deleteBatch()" title="Delete selected batch (requires passcode)">Delete Batch</button>
+            </div>
+
+            <!-- Tags Panel -->
+            <div class="sidebar-panel">
+                <h3>Tag Filter</h3>
+                <div id="tagButtons" style="display:flex;flex-wrap:wrap;gap:8px;">
+                    <span style="color:#737373;font-size:0.85rem;">No tags yet</span>
+                </div>
+            </div>
+
+            <!-- Current Batch Tags -->
+            <div class="sidebar-panel">
+                <h3>Batch Tags</h3>
+                <div id="batchTagsDisplay" style="display:flex;flex-wrap:wrap;gap:6px;min-height:28px;align-items:center;margin-bottom:12px;">
+                    <span style="color:#737373;font-size:0.85rem;">No tags</span>
+                </div>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn btn-secondary" onclick="openAssignTagsModal()" title="Edit batch tags" style="flex:1;font-size:0.8rem;">Edit Tags</button>
+                    <button class="btn btn-secondary" onclick="openTagModal()" title="Manage all tags" style="flex:1;font-size:0.8rem;">Manage</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="dashboard-main">
+            <!-- Stats Cards -->
+            <div class="stats-grid">
+                <div class="stat-card stat-primary">
+                    <div class="stat-value" id="statTotal">0</div>
+                    <div class="stat-label">Total Items</div>
+                </div>
+                <div class="stat-card stat-success">
+                    <div class="stat-value" id="statCompleted">0</div>
+                    <div class="stat-label">Completed</div>
+                </div>
+                <div class="stat-card stat-warning">
+                    <div class="stat-value" id="statPending">0</div>
+                    <div class="stat-label">Pending</div>
+                </div>
+            </div>
+
+            <!-- Main Panel -->
+            <div class="main-panel">
+                <h2>Checklist Items</h2>
+                
+                <div class="progress-container" id="progressContainer" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text">
+                        <span id="progressText">0 of 0 completed</span>
+                        <span id="progressPercent">0%</span>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="actions-grid">
+                    <button class="btn btn-secondary" disabled title="Export to Excel (disabled)">Export Excel</button>
+                    <button class="btn btn-secondary" onclick="exportPDF()" title="Export to PDF">Export PDF</button>
+                    <button class="btn btn-secondary" onclick="copyAll()" title="Copy all items">Copy All</button>
+                    <button class="btn btn-secondary" onclick="calculateSelectedGap()" title="Calculate gap">Gap Calc <span id="selectionCount" style="background:#3b82f6;padding:2px 6px;border-radius:10px;margin-left:4px;font-size:0.7rem;display:none;">0</span></button>
+                    <button class="btn btn-secondary" onclick="viewWorkflowGaps()" title="View workflow gaps">Workflow Gaps</button>
+                    <button class="btn btn-danger" onclick="clearAll()" title="Clear all items">Clear All</button>
+                </div>
+
+                <!-- Table -->
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="check-cell" title="Select items">Sel</th>
+                                <th class="check-cell" title="Mark as done">Done</th>
+                                <th title="Subitem name">Subitem</th>
+                                <th title="Type of communication">Label</th>
+                                <th title="Scheduled date">Date</th>
+                                <th title="Scheduled time">Time</th>
+                                <th title="Time gap from previous item">Gap</th>
+                                <th class="check-cell" title="Time verified">Time OK</th>
+                                <th class="check-cell" title="CRM verified">CRM OK</th>
+                                <th title="Actions">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                    <div class="empty-state" id="emptyState">
+                        <p>No items yet. Add items using the form above.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="toast" id="toast">Saved!</div>
+
+    <!-- Export Modal -->
+    <div class="modal" id="exportModal">
+        <div class="modal-content">
+            <h2>Export Details</h2>
+            <div class="form-group">
+                <label>Workflow Name</label>
+                <input type="text" id="exportWorkflow" placeholder="e.g., JACKSON ACTIVATION SEQUENCE">
+            </div>
+            <div class="form-group">
+                <label>Include Workflow Gap (Optional)</label>
+                <select id="exportWorkflowGap" onchange="fillWorkflowGapDetails()">
+                    <option value="">-- None --</option>
+                </select>
+            </div>
+            <div id="selectedGapPreview" style="display:none;background:#22c55e;color:#000;padding:10px;border-radius:6px;text-align:center;margin-bottom:16px;">
+                <span style="font-size:0.8rem;">Selected Gap:</span>
+                <span id="selectedGapValue" style="font-weight:bold;font-size:1.1rem;margin-left:8px;"></span>
+            </div>
+            <div class="form-group">
+                <label>Assigned To</label>
+                <input type="text" id="exportName" placeholder="e.g., John Paul V. Valencia">
+            </div>
+            <div class="form-group">
+                <label>Organization</label>
+                <input type="text" id="exportOrg" placeholder="e.g., Tech Dev Team">
+            </div>
+            <div class="form-group">
+                <label>Casino Name</label>
+                <input type="text" id="exportCasino" placeholder="e.g., JACKSON-0426CT April Continuity">
+            </div>
+            <div class="form-group">
+                <label>Campaign Dates</label>
+                <input type="text" id="exportDates" placeholder="e.g., March 28 - April 24 2026">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-success" id="modalExportBtn">Export</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Item Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <h2>Edit Item</h2>
+            <input type="hidden" id="editItemId">
+            <div class="form-group">
+                <label>Subitem Name</label>
+                <input type="text" id="editName" placeholder="e.g., Rem1 Text1 PMA-0426CT">
+            </div>
+            <div class="form-group">
+                <label>Label</label>
+                <select id="editLabel">
+                    <option value="Warm Up Text">Warm Up Text</option>
+                    <option value="Dynamic Call">Dynamic Call</option>
+                    <option value="Special Text">Special Text</option>
+                    <option value="Call Reminder">Call Reminder</option>
+                    <option value="Text Reminder">Text Reminder</option>
+                    <option value="Event Day">Event Day</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Date</label>
+                <div class="date-picker">
+                    <input type="text" id="editDate" class="date-picker-input" placeholder="Select date" readonly>
+                    <input type="hidden" id="editDateValue">
+                    <div class="calendar-dropdown" id="editCalendar">
+                        <div class="calendar-header">
+                            <span class="month-year" id="editCalendarMonth"></span>
+                            <div class="calendar-nav">
+                                <button type="button" onclick="changeMonth('edit', -1)">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,18 9,12 15,6"/></svg>
+                                </button>
+                                <button type="button" onclick="changeMonth('edit', 1)">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,6 15,12 9,18"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="calendar-grid" id="editCalendarGrid"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Time</label>
+                <div class="time-picker">
+                    <input type="text" id="editTime" class="time-picker-input" placeholder="Select time" readonly>
+                    <input type="hidden" id="editTimeValue">
+                    <div class="time-dropdown" id="editTimePicker">
+                        <div class="time-dropdown-header">Select Time</div>
+                        <div class="time-columns">
+                            <div class="time-column">
+                                <div class="time-column-label">Hour</div>
+                                <div class="time-scroll" id="editHourScroll"></div>
+                            </div>
+                            <div class="time-divider">:</div>
+                            <div class="time-column">
+                                <div class="time-column-label">Min</div>
+                                <div class="time-scroll" id="editMinuteScroll"></div>
+                            </div>
+                            <div class="time-column">
+                                <div class="time-column-label">Period</div>
+                                <div class="time-scroll" id="editPeriodScroll"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                <button class="btn btn-success" onclick="saveEdit()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content">
+            <h2>Delete Item</h2>
+            <input type="hidden" id="deleteItemId">
+            <p style="color:#a3a3a3;margin-bottom:16px;">Are you sure you want to delete this item?</p>
+            <p id="deleteItemName" style="color:#fff;font-weight:bold;margin-bottom:20px;"></p>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+                <button class="btn btn-danger" onclick="confirmDelete()">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Passcode Modal -->
+    <div id="passcodeModal" class="modal">
+        <div class="modal-content" style="max-width:350px;">
+            <h2>Enter Passcode</h2>
+            <p id="passcodeMessage" style="color:#a3a3a3;margin-bottom:16px;">Passcode required to continue.</p>
+            <input type="password" id="passcodeInput" placeholder="Enter passcode" onkeyup="if(event.key==='Enter')submitPasscode()" style="width:100%;padding:12px;margin-bottom:16px;background:#0a0a0a;border:1px solid #333;border-radius:6px;color:#fff;font-size:1rem;text-align:center;letter-spacing:4px;">
+            <div class="btn-row" style="display:flex;justify-content:flex-end;gap:10px;">
+                <button class="btn btn-secondary" onclick="cancelPasscode()">Cancel</button>
+                <button class="btn btn-primary" onclick="submitPasscode()">Verify</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gap Calculation Result Modal -->
+    <div id="gapResultModal" class="modal">
+        <div class="modal-content">
+            <h2>Gap Calculation Result</h2>
+            <div style="margin-bottom:16px;">
+                <p style="color:#a3a3a3;margin-bottom:8px;">Selected Items: <span id="gapSelectedCount" style="color:#fff;font-weight:bold;"></span></p>
+                <p style="color:#a3a3a3;margin-bottom:8px;">From: <span id="gapFromItem" style="color:#fff;font-weight:bold;"></span></p>
+                <p style="color:#a3a3a3;margin-bottom:8px;">To: <span id="gapToItem" style="color:#fff;font-weight:bold;"></span></p>
+            </div>
+            <div style="background:#22c55e;color:#000;padding:16px;border-radius:8px;text-align:center;margin-bottom:20px;">
+                <p style="font-size:0.9rem;margin-bottom:4px;">Total Gap</p>
+                <p id="gapResultValue" style="font-size:1.5rem;font-weight:bold;"></p>
+            </div>
+            <div class="form-group" style="margin-bottom:8px;">
+                <label>Casino Name:</label>
+                <input type="text" id="gapCasinoName" placeholder="e.g., PAUMA, JACKSON" oninput="updateGapPreview()">
+            </div>
+            <p style="color:#a3a3a3;font-size:0.85rem;margin-bottom:16px;">
+                Will save as: <span id="gapPreviewName" style="color:#fff;">[Casino] Gifting Activate/Reminder Automated</span>
+            </p>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="closeGapResultModal()">Cancel</button>
+                <button class="btn btn-success" onclick="saveGapToWorkflow()">Add to Workflow</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Workflow Gaps List Modal -->
+    <div id="workflowGapsModal" class="modal">
+        <div class="modal-content" style="max-width:600px;max-height:80vh;overflow-y:auto;">
+            <h2>Saved Workflow Gaps</h2>
+            <div id="workflowGapsList" style="margin-bottom:20px;"></div>
+            <div class="modal-buttons">
+                <button class="btn btn-danger" onclick="clearWorkflowGaps()">Clear All</button>
+                <button class="btn btn-secondary" onclick="closeWorkflowGapsModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tag Management Modal -->
+    <div id="tagModal" class="modal">
+        <div class="modal-content" style="max-width:500px;">
+            <h2>Manage Tags</h2>
+            <div class="form-group" style="margin-bottom:16px;">
+                <label>Create New Tag</label>
+                <div style="display:flex;gap:8px;">
+                    <input type="text" id="newTagName" placeholder="e.g., April, Continuity, Urgent" style="flex:1;">
+                    <input type="color" id="newTagColor" value="#3b82f6" style="width:50px;padding:2px;cursor:pointer;" title="Choose tag color">
+                    <button class="btn btn-success" onclick="createTag()">Add</button>
+                </div>
+            </div>
+            <div style="margin-bottom:16px;">
+                <label style="margin-bottom:8px;display:block;">Existing Tags</label>
+                <div id="tagsList" style="max-height:200px;overflow-y:auto;"></div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="closeTagModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assign Tags to Batch Modal -->
+    <div id="assignTagsModal" class="modal">
+        <div class="modal-content" style="max-width:400px;">
+            <h2>Edit Batch Tags</h2>
+            <p style="color:#a3a3a3;font-size:0.9rem;margin-bottom:16px;">Select tags to assign to this batch:</p>
+            <div id="assignTagsCheckboxes" style="max-height:300px;overflow-y:auto;margin-bottom:16px;"></div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="closeAssignTagsModal()">Cancel</button>
+                <button class="btn btn-success" onclick="saveAssignedTags()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic Alert Modal -->
+    <div id="alertModal" class="modal">
+        <div class="modal-content" style="max-width:400px;">
+            <h2 id="alertModalTitle">Notice</h2>
+            <p id="alertModalMessage" style="color:#e5e5e5;margin-bottom:20px;white-space:pre-line;line-height:1.6;"></p>
+            <div style="display:flex;justify-content:flex-end;">
+                <button class="btn btn-success" onclick="closeAlertModal()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic Confirm Modal -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content" style="max-width:420px;">
+            <h2 id="confirmModalTitle">Confirm</h2>
+            <p id="confirmModalMessage" style="color:#e5e5e5;margin-bottom:20px;white-space:pre-line;line-height:1.6;"></p>
+            <div style="display:flex;justify-content:flex-end;gap:10px;">
+                <button class="btn btn-secondary" onclick="resolveConfirmModal(false)">Cancel</button>
+                <button class="btn btn-danger" id="confirmModalBtn" onclick="resolveConfirmModal(true)">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Management Modal -->
+    <div id="userMgmtModal" class="modal">
+        <div class="modal-content" style="max-width:560px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                <h2 style="margin:0;">Manage Users</h2>
+                <button class="btn btn-secondary" onclick="document.getElementById('userMgmtModal').style.display='none'" style="padding:4px 12px;font-size:1.1rem;">&times;</button>
+            </div>
+
+            <!-- Add User Form -->
+            <div style="background:#0a0a0a;border:1px solid #333;border-radius:8px;padding:16px;margin-bottom:20px;">
+                <h3 style="color:#a3a3a3;font-size:0.85rem;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">Add New User</h3>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                    <input type="text" id="newUserName" placeholder="Full Name" style="padding:10px 12px;border-radius:6px;border:1px solid #404040;background:#171717;color:#fff;font-size:0.9rem;">
+                    <input type="email" id="newUserEmail" placeholder="name@247ga.co" style="padding:10px 12px;border-radius:6px;border:1px solid #404040;background:#171717;color:#fff;font-size:0.9rem;">
+                </div>
+                <div style="display:flex;gap:10px;">
+                    <input type="password" id="newUserPassword" placeholder="Password" style="flex:1;padding:10px 12px;border-radius:6px;border:1px solid #404040;background:#171717;color:#fff;font-size:0.9rem;">
+                    <button class="btn btn-success" onclick="addNewUser()" style="padding:10px 20px;white-space:nowrap;">Add User</button>
+                </div>
+            </div>
+
+            <!-- User List -->
+            <div style="max-height:300px;overflow-y:auto;">
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr style="border-bottom:1px solid #333;">
+                            <th style="text-align:left;padding:8px 10px;color:#a3a3a3;font-size:0.8rem;font-weight:500;">Name</th>
+                            <th style="text-align:left;padding:8px 10px;color:#a3a3a3;font-size:0.8rem;font-weight:500;">Email</th>
+                            <th style="text-align:left;padding:8px 10px;color:#a3a3a3;font-size:0.8rem;font-weight:500;">Last Login</th>
+                            <th style="text-align:right;padding:8px 10px;color:#a3a3a3;font-size:0.8rem;font-weight:500;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userListBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Auth check - redirect to login if not authenticated
+        (async function checkAuth() {
+            try {
+                const res = await fetch('api/auth.php?action=me');
+                if (!res.ok) { window.location.href = 'login.html'; return; }
+                const data = await res.json();
+                if (!data.authenticated) { window.location.href = 'login.html'; return; }
+                document.getElementById('userDisplay').textContent = data.user.name;
+                
+                // Show Users button only for admin
+                const adminEmails = ['paul.valencia@247ga.co'];
+                if (adminEmails.includes(data.user.email.toLowerCase())) {
+                    document.getElementById('usersBtn').style.display = '';
+                }
+            } catch (e) { window.location.href = 'login.html'; }
+        })();
+
+        async function logoutUser() {
+            await fetch('api/auth.php?action=logout', { method: 'POST' });
+            window.location.href = 'login.html';
+        }
+
+        // --- User Management ---
+        async function openUserManagement() {
+            const ok = await verifyPasscode('Passcode required to manage users.');
+            if (!ok) return;
+            document.getElementById('userMgmtModal').style.display = 'flex';
+            loadUserList();
+        }
+
+        async function loadUserList() {
+            try {
+                const res = await fetch('api/auth.php?action=users');
+                const users = await res.json();
+                const tbody = document.getElementById('userListBody');
+                tbody.innerHTML = '';
+
+                users.forEach(u => {
+                    // Hide the currently logged-in admin from the list
+                    if (u.name === document.getElementById('userDisplay').textContent) return;
+
+                    const lastLogin = u.last_login ? new Date(u.last_login).toLocaleDateString('en-US', {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'}) : 'Never';
+                    const tr = document.createElement('tr');
+                    tr.style.borderBottom = '1px solid #222';
+                    tr.innerHTML = `
+                        <td style="padding:10px;color:#fff;font-size:0.9rem;">${u.name}</td>
+                        <td style="padding:10px;color:#a3a3a3;font-size:0.85rem;">${u.email}</td>
+                        <td style="padding:10px;color:#737373;font-size:0.8rem;">${lastLogin}</td>
+                        <td style="padding:10px;text-align:right;">
+                            <button class="btn btn-danger" style="padding:8px 16px;font-size:0.8rem;" onclick="removeUser(${u.id}, '${u.name}')">Remove</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) {
+                console.error('Failed to load users', e);
+            }
+        }
+
+        async function addNewUser() {
+            const name = document.getElementById('newUserName').value.trim();
+            const email = document.getElementById('newUserEmail').value.trim().toLowerCase();
+            const password = document.getElementById('newUserPassword').value;
+
+            if (!name || !email || !password) {
+                await showAlert('Please fill in all fields.', 'Missing Info');
+                return;
+            }
+
+            if (!email.endsWith('@247ga.co')) {
+                await showAlert('Only @247ga.co email addresses are allowed.', 'Invalid Email');
+                return;
+            }
+
+            if (password.length < 4) {
+                await showAlert('Password must be at least 4 characters.', 'Weak Password');
+                return;
+            }
+
+            try {
+                const res = await fetch('api/auth.php?action=users', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, password })
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    document.getElementById('newUserName').value = '';
+                    document.getElementById('newUserEmail').value = '';
+                    document.getElementById('newUserPassword').value = '';
+                    showToast('User added successfully!');
+                    loadUserList();
+                } else {
+                    await showAlert(data.error || 'Failed to add user.', 'Error');
+                }
+            } catch (e) {
+                await showAlert('Connection error.', 'Error');
+            }
+        }
+
+        async function removeUser(id, name) {
+            const ok = await showConfirm(`Remove "${name}" from the system?\nThey will no longer be able to log in.`, 'Remove User', 'Remove');
+            if (!ok) return;
+
+            try {
+                const res = await fetch(`api/auth.php?action=users&id=${id}`, { method: 'DELETE' });
+                const data = await res.json();
+
+                if (res.ok) {
+                    showToast('User removed');
+                    loadUserList();
+                } else {
+                    await showAlert(data.error || 'Failed to remove user.', 'Error');
+                }
+            } catch (e) {
+                await showAlert('Connection error.', 'Error');
+            }
+        }
+
+        const API_URL = 'api';
+        let items = [];
+        let currentBatchId = null;
+        let currentBatchName = '';
+        let selectedItemsMap = new Map(); // Persist selections across batches
+
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const monthNamesFull = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        const dayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+        // ---- Custom Date Picker ----
+        const datePickerState = {
+            edit: { month: new Date().getMonth(), year: new Date().getFullYear(), selected: null },
+            inline: { month: new Date().getMonth(), year: new Date().getFullYear(), selected: null }
+        };
+
+        function initDatePicker(pickerId) {
+            const input = document.getElementById(pickerId + 'Date');
+            const calendar = document.getElementById(pickerId + 'Calendar');
+            if (!input || !calendar) return;
+            
+            // Remove existing listener to prevent duplicates
+            const newInput = input.cloneNode(true);
+            input.parentNode.replaceChild(newInput, input);
+            
+            newInput.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Close other calendars
+                document.querySelectorAll('.calendar-dropdown.show').forEach(c => c.classList.remove('show'));
+                
+                // Position the calendar - check if enough space below
+                const rect = newInput.getBoundingClientRect();
+                const dropdownHeight = 300; // Approximate height
+                const spaceBelow = window.innerHeight - rect.bottom;
+                const spaceAbove = rect.top;
+                
+                if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
+                    // Show above
+                    calendar.style.top = 'auto';
+                    calendar.style.bottom = (window.innerHeight - rect.top + 8) + 'px';
+                } else {
+                    // Show below
+                    calendar.style.bottom = 'auto';
+                    calendar.style.top = (rect.bottom + 8) + 'px';
+                }
+                calendar.style.left = rect.left + 'px';
+                
+                calendar.classList.toggle('show');
+                if (calendar.classList.contains('show')) {
+                    renderCalendar(pickerId);
+                }
+            });
+        }
+
+        function renderCalendar(pickerId) {
+            const state = datePickerState[pickerId];
+            const grid = document.getElementById(pickerId + 'CalendarGrid');
+            const monthLabel = document.getElementById(pickerId + 'CalendarMonth');
+            
+            monthLabel.textContent = `${monthNamesFull[state.month]} ${state.year}`;
+            
+            const firstDay = new Date(state.year, state.month, 1).getDay();
+            const daysInMonth = new Date(state.year, state.month + 1, 0).getDate();
+            const daysInPrevMonth = new Date(state.year, state.month, 0).getDate();
+            
+            const today = new Date();
+            const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+            
+            let html = dayNames.map(d => `<div class="calendar-day-header">${d}</div>`).join('');
+            
+            // Previous month days
+            for (let i = firstDay - 1; i >= 0; i--) {
+                const day = daysInPrevMonth - i;
+                const prevMonth = state.month === 0 ? 11 : state.month - 1;
+                const prevYear = state.month === 0 ? state.year - 1 : state.year;
+                const dateStr = `${prevYear}-${String(prevMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                html += `<div class="calendar-day other-month" data-date="${dateStr}" onclick="selectDate('${pickerId}', '${dateStr}')">${day}</div>`;
+            }
+            
+            // Current month days
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = `${state.year}-${String(state.month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                const isToday = dateStr === todayStr ? 'today' : '';
+                const isSelected = dateStr === state.selected ? 'selected' : '';
+                html += `<div class="calendar-day ${isToday} ${isSelected}" data-date="${dateStr}" onclick="selectDate('${pickerId}', '${dateStr}')">${day}</div>`;
+            }
+            
+            // Next month days
+            const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+            const nextDays = totalCells - firstDay - daysInMonth;
+            for (let day = 1; day <= nextDays; day++) {
+                const nextMonth = state.month === 11 ? 0 : state.month + 1;
+                const nextYear = state.month === 11 ? state.year + 1 : state.year;
+                const dateStr = `${nextYear}-${String(nextMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                html += `<div class="calendar-day other-month" data-date="${dateStr}" onclick="selectDate('${pickerId}', '${dateStr}')">${day}</div>`;
+            }
+            
+            grid.innerHTML = html;
+        }
+
+        function changeMonth(pickerId, delta) {
+            const state = datePickerState[pickerId];
+            state.month += delta;
+            if (state.month > 11) { state.month = 0; state.year++; }
+            if (state.month < 0) { state.month = 11; state.year--; }
+            renderCalendar(pickerId);
+        }
+
+        function selectDate(pickerId, dateStr) {
+            const state = datePickerState[pickerId];
+            state.selected = dateStr;
+            
+            const [year, month, day] = dateStr.split('-').map(Number);
+            const displayDate = `${monthNamesFull[month-1]} ${day}, ${year}`;
+            
+            document.getElementById(pickerId + 'Date').value = displayDate;
+            document.getElementById(pickerId + 'DateValue').value = dateStr;
+            document.getElementById(pickerId + 'Calendar').classList.remove('show');
+            
+            // Update calendar view to selected month
+            state.month = month - 1;
+            state.year = year;
+        }
+
+        function setDatePickerValue(pickerId, dateStr) {
+            if (!dateStr) return;
+            const state = datePickerState[pickerId];
+            const [year, month, day] = dateStr.split('-').map(Number);
+            state.selected = dateStr;
+            state.month = month - 1;
+            state.year = year;
+            
+            const displayDate = `${monthNamesFull[month-1]} ${day}, ${year}`;
+            document.getElementById(pickerId + 'Date').value = displayDate;
+            document.getElementById(pickerId + 'DateValue').value = dateStr;
+        }
+
+        function getDatePickerValue(pickerId) {
+            return document.getElementById(pickerId + 'DateValue').value;
+        }
+
+        // Close calendar when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.date-picker')) {
+                document.querySelectorAll('.calendar-dropdown.show').forEach(c => c.classList.remove('show'));
+            }
+            if (!e.target.closest('.time-picker')) {
+                document.querySelectorAll('.time-dropdown.show').forEach(c => c.classList.remove('show'));
+            }
+        });
+
+        // ---- Custom Time Picker ----
+        const timePickerState = {
+            edit: { hour: 10, minute: 0, period: 'AM' },
+            inline: { hour: 10, minute: 0, period: 'AM' }
+        };
+
+        function initTimePicker(pickerId) {
+            const input = document.getElementById(pickerId + 'Time');
+            const dropdown = document.getElementById(pickerId + 'TimePicker');
+            if (!input || !dropdown) return;
+            
+            // Remove existing listener to prevent duplicates
+            const newInput = input.cloneNode(true);
+            input.parentNode.replaceChild(newInput, input);
+            
+            newInput.addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.time-dropdown.show').forEach(c => c.classList.remove('show'));
+                document.querySelectorAll('.calendar-dropdown.show').forEach(c => c.classList.remove('show'));
+                
+                // Position the dropdown - check if enough space below
+                const rect = newInput.getBoundingClientRect();
+                const dropdownHeight = 220; // Approximate height
+                const spaceBelow = window.innerHeight - rect.bottom;
+                const spaceAbove = rect.top;
+                
+                if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
+                    // Show above
+                    dropdown.style.top = 'auto';
+                    dropdown.style.bottom = (window.innerHeight - rect.top + 8) + 'px';
+                } else {
+                    // Show below
+                    dropdown.style.bottom = 'auto';
+                    dropdown.style.top = (rect.bottom + 8) + 'px';
+                }
+                dropdown.style.left = rect.left + 'px';
+                
+                dropdown.classList.toggle('show');
+                if (dropdown.classList.contains('show')) {
+                    renderTimePicker(pickerId);
+                }
+            });
+        }
+
+        function renderTimePicker(pickerId) {
+            const state = timePickerState[pickerId];
+            const hourScroll = document.getElementById(pickerId + 'HourScroll');
+            const minuteScroll = document.getElementById(pickerId + 'MinuteScroll');
+            const periodScroll = document.getElementById(pickerId + 'PeriodScroll');
+            
+            // Hours 1-12
+            hourScroll.innerHTML = Array.from({length: 12}, (_, i) => {
+                const h = i + 1;
+                const selected = h === state.hour ? 'selected' : '';
+                return `<div class="time-option ${selected}" onclick="selectTimeOption('${pickerId}', 'hour', ${h})">${h}</div>`;
+            }).join('');
+            
+            // Minutes 00-55 in 5-min increments
+            minuteScroll.innerHTML = Array.from({length: 12}, (_, i) => {
+                const m = i * 5;
+                const selected = m === state.minute ? 'selected' : '';
+                return `<div class="time-option ${selected}" onclick="selectTimeOption('${pickerId}', 'minute', ${m})">${String(m).padStart(2, '0')}</div>`;
+            }).join('');
+            
+            // AM/PM
+            periodScroll.innerHTML = ['AM', 'PM'].map(p => {
+                const selected = p === state.period ? 'selected' : '';
+                return `<div class="time-option ${selected}" onclick="selectTimeOption('${pickerId}', 'period', '${p}')">${p}</div>`;
+            }).join('');
+            
+            // Scroll to selected values
+            scrollToSelected(hourScroll);
+            scrollToSelected(minuteScroll);
+        }
+
+        function scrollToSelected(container) {
+            const selected = container.querySelector('.selected');
+            if (selected) {
+                container.scrollTop = selected.offsetTop - container.offsetHeight / 2 + selected.offsetHeight / 2;
+            }
+        }
+
+        function selectTimeOption(pickerId, type, value) {
+            const state = timePickerState[pickerId];
+            state[type] = value;
+            updateTimeDisplay(pickerId);
+            renderTimePicker(pickerId);
+        }
+
+        function updateTimeDisplay(pickerId) {
+            const state = timePickerState[pickerId];
+            const displayTime = `${state.hour}:${String(state.minute).padStart(2, '0')} ${state.period}`;
+            document.getElementById(pickerId + 'Time').value = displayTime;
+            
+            // Convert to 24h format for storage
+            let hour24 = state.hour;
+            if (state.period === 'PM' && state.hour !== 12) hour24 += 12;
+            if (state.period === 'AM' && state.hour === 12) hour24 = 0;
+            const timeValue = `${String(hour24).padStart(2, '0')}:${String(state.minute).padStart(2, '0')}`;
+            document.getElementById(pickerId + 'TimeValue').value = timeValue;
+        }
+
+        function setTimePickerValue(pickerId, time24) {
+            if (!time24) time24 = '10:00';
+            const state = timePickerState[pickerId];
+            const [h, m] = time24.split(':').map(Number);
+            
+            state.period = h >= 12 ? 'PM' : 'AM';
+            state.hour = h % 12 || 12;
+            state.minute = Math.floor(m / 5) * 5; // Round to nearest 5
+            
+            updateTimeDisplay(pickerId);
+        }
+
+        function getTimePickerValue(pickerId) {
+            return document.getElementById(pickerId + 'TimeValue').value || '10:00';
+        }
+
+        // ---- Custom Batch Select Dropdown ----
+        function toggleBatchSelect(e) {
+            if (e) e.stopPropagation();
+            const wrapper = document.getElementById('batchSelectWrapper');
+            wrapper.classList.toggle('open');
+            
+            // Update glider position when opening
+            if (wrapper.classList.contains('open')) {
+                setTimeout(updateGliderPosition, 10);
+            }
+        }
+
+        function selectBatch(id, name, index) {
+            document.getElementById('batchSelectValue').value = id;
+            document.getElementById('batchSelectText').textContent = name || '-- Select Batch --';
+            document.getElementById('batchSelectWrapper').classList.remove('open');
+            
+            // Update selected state
+            document.querySelectorAll('#batchSelectOptions .custom-select-option').forEach((opt, i) => {
+                opt.classList.toggle('selected', opt.dataset.value === String(id));
+            });
+            
+            // Move glider to selected position
+            updateGliderPosition();
+            
+            if (id) loadBatch();
+        }
+
+        function updateGliderPosition() {
+            const selectedOpt = document.querySelector('#batchSelectOptions .custom-select-option.selected');
+            const glider = document.getElementById('batchGlider');
+            const container = document.getElementById('batchSelectOptions');
+            
+            if (selectedOpt && glider && container) {
+                // Account for scroll position
+                const offset = selectedOpt.offsetTop - 8; // -8 for container padding
+                glider.style.transform = `translateY(${offset}px)`;
+                glider.style.height = `${selectedOpt.offsetHeight}px`;
+                
+                // Scroll selected item into view
+                selectedOpt.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#batchSelectWrapper')) {
+                document.getElementById('batchSelectWrapper')?.classList.remove('open');
+            }
+        });
+
+        // ---- Custom Tooltip with Branch Line (Global) ----
+        const tooltip = document.getElementById('customTooltip');
+        const tooltipContent = document.getElementById('tooltipContent');
+        let tooltipTimeout;
+
+        function showTooltip(element, text) {
+            clearTimeout(tooltipTimeout);
+            tooltipContent.textContent = text;
+            
+            const rect = element.getBoundingClientRect();
+            const screenCenterX = window.innerWidth / 2;
+            const screenTopThreshold = 150; // Elements in top 150px
+            const elementCenterX = rect.left + rect.width / 2;
+            const tooltipLine = tooltip.querySelector('.tooltip-line path');
+            
+            // Reset classes
+            tooltip.classList.remove('tooltip-left', 'tooltip-right', 'tooltip-bottom');
+            
+            if (rect.top < screenTopThreshold) {
+                // Element at TOP - tooltip below, dot at bottom-left corner of element
+                // Check if tooltip would go off right edge
+                const tooltipLeft = rect.left;
+                const maxLeft = window.innerWidth - 300; // Reserve space for tooltip
+                const adjustedLeft = Math.min(tooltipLeft, maxLeft);
+                
+                tooltip.style.left = adjustedLeft + 'px';
+                tooltip.style.right = 'auto';
+                tooltip.style.top = (rect.bottom) + 'px';
+                tooltip.classList.add('tooltip-bottom');
+                tooltipLine.setAttribute('d', 'M 4 4 C 4 60, 20 80, 80 80');
+            } else if (elementCenterX < screenCenterX) {
+                // Element on LEFT side - tooltip at upper-right corner
+                tooltip.style.left = (rect.right) + 'px';
+                tooltip.style.right = 'auto';
+                tooltip.style.top = (rect.top - 10) + 'px';
+                tooltip.classList.add('tooltip-right');
+                tooltipLine.setAttribute('d', 'M 0 30 Q 40 30, 80 30');
+            } else {
+                // Element on RIGHT side - tooltip at upper-left corner
+                tooltip.style.left = 'auto';
+                tooltip.style.right = (window.innerWidth - rect.left) + 'px';
+                tooltip.style.top = (rect.top - 10) + 'px';
+                tooltip.classList.add('tooltip-left');
+                tooltipLine.setAttribute('d', 'M 80 30 Q 40 30, 0 30');
+            }
+            
+            tooltipTimeout = setTimeout(() => {
+                tooltip.classList.add('show');
+            }, 200);
+        }
+
+        function hideTooltip() {
+            clearTimeout(tooltipTimeout);
+            tooltip.classList.remove('show');
+        }
+
+        // Global tooltip handler for all elements with data-tooltip attribute
+        document.addEventListener('mouseover', (e) => {
+            const el = e.target.closest('[data-tooltip]');
+            if (el) {
+                const text = el.getAttribute('data-tooltip');
+                if (text) showTooltip(el, text);
+            }
+        });
+
+        document.addEventListener('mouseout', (e) => {
+            const el = e.target.closest('[data-tooltip]');
+            if (el) hideTooltip();
+        });
+
+        // Convert all title attributes to data-tooltip on page load
+        document.querySelectorAll('[title]').forEach(el => {
+            const title = el.getAttribute('title');
+            if (title) {
+                el.setAttribute('data-tooltip', title);
+                el.removeAttribute('title');
+            }
+        });
+
+        // ---- Batch Name Pointer Arrow ----
+        function showBatchNameArrow() {
+            if (items.length > 0) return; // Only show for first item
+            
+            const warning = document.getElementById('batchNameWarning');
+            const batchInput = document.getElementById('batchName');
+            const arrow = document.getElementById('batchNameArrow');
+            const path = document.getElementById('batchNameArrowPath');
+            
+            if (!warning || !batchInput || !arrow || !path) return;
+            
+            const warningRect = warning.getBoundingClientRect();
+            const inputRect = batchInput.getBoundingClientRect();
+            
+            // Start from left of warning message
+            const startX = warningRect.left;
+            const startY = warningRect.top + warningRect.height / 2;
+            
+            // End at bottom center of batch name input (arrow points here)
+            const endX = inputRect.left + inputRect.width / 2;
+            const endY = inputRect.bottom + 12;
+            
+            // Control points for smooth long curve going left then up
+            const ctrl1X = startX - 150;
+            const ctrl1Y = startY + 50;
+            const ctrl2X = endX - 150;
+            const ctrl2Y = endY + 150;
+            
+            // Create curved path - start from warning, end at input (arrowhead at end)
+            const d = `M ${startX} ${startY} C ${ctrl1X} ${ctrl1Y}, ${ctrl2X} ${ctrl2Y}, ${endX} ${endY}`;
+            path.setAttribute('d', d);
+            
+            // Highlight batch name input
+            batchInput.style.boxShadow = '0 0 0 3px #f59e0b, 0 0 20px rgba(245, 158, 11, 0.5)';
+            batchInput.style.transition = 'box-shadow 0.3s ease';
+            
+            arrow.classList.add('show');
+        }
+
+        function hideBatchNameArrow() {
+            const arrow = document.getElementById('batchNameArrow');
+            const batchInput = document.getElementById('batchName');
+            
+            if (arrow) arrow.classList.remove('show');
+            if (batchInput) batchInput.style.boxShadow = '';
+        }
+
+        // ---- Add Row Pointer Arrow (Save button hover) ----
+        function showAddRowArrow() {
+            if (items.length > 0) return; // Only show for first item
+            
+            const batchName = document.getElementById('batchName').value.trim();
+            if (!batchName) return; // Only show if batch name is entered
+            
+            const saveBtn = document.getElementById('saveBtn');
+            const subitemInput = document.getElementById('inlineName');
+            const arrow = document.getElementById('batchNameArrow');
+            const path = document.getElementById('batchNameArrowPath');
+            
+            if (!saveBtn || !subitemInput || !arrow || !path) return;
+            
+            const saveBtnRect = saveBtn.getBoundingClientRect();
+            const inputRect = subitemInput.getBoundingClientRect();
+            
+            // Start from right side of Save button
+            const startX = saveBtnRect.right;
+            const startY = saveBtnRect.top + saveBtnRect.height / 2;
+            
+            // End at left side of Subitem name input
+            const endX = inputRect.left - 5;
+            const endY = inputRect.top + inputRect.height / 2;
+            
+            // Control points for pronounced curve (goes down then right)
+            const ctrl1X = startX + 30;
+            const ctrl1Y = startY + 150;
+            const ctrl2X = endX - 100;
+            const ctrl2Y = endY + 50;
+            
+            // Create curved path
+            const d = `M ${startX} ${startY} C ${ctrl1X} ${ctrl1Y}, ${ctrl2X} ${ctrl2Y}, ${endX} ${endY}`;
+            path.setAttribute('d', d);
+            
+            // Highlight subitem input
+            subitemInput.style.boxShadow = '0 0 0 3px #22c55e, 0 0 20px rgba(34, 197, 94, 0.4)';
+            subitemInput.style.transition = 'box-shadow 0.3s ease';
+            
+            arrow.querySelector('polygon').setAttribute('fill', '#22c55e');
+            arrow.querySelector('path').setAttribute('stroke', '#22c55e');
+            
+            arrow.classList.add('show');
+        }
+
+        function hideAddRowArrow() {
+            const arrow = document.getElementById('batchNameArrow');
+            const subitemInput = document.getElementById('inlineName');
+            
+            if (arrow) {
+                arrow.classList.remove('show');
+                arrow.querySelector('polygon').setAttribute('fill', '#f59e0b');
+                arrow.querySelector('path').setAttribute('stroke', '#f59e0b');
+            }
+            if (subitemInput) subitemInput.style.boxShadow = '';
+        }
+
+        // ---- Reusable Alert & Confirm modals ----
+        let alertResolve = null;
+        let confirmResolve = null;
+
+        function showAlert(message, title = 'Notice') {
+            return new Promise(resolve => {
+                alertResolve = resolve;
+                document.getElementById('alertModalTitle').textContent = title;
+                document.getElementById('alertModalMessage').textContent = message;
+                document.getElementById('alertModal').style.display = 'flex';
+            });
+        }
+
+        function closeAlertModal() {
+            document.getElementById('alertModal').style.display = 'none';
+            if (alertResolve) { alertResolve(); alertResolve = null; }
+        }
+
+        function showConfirm(message, title = 'Confirm', confirmLabel = 'Confirm') {
+            return new Promise(resolve => {
+                confirmResolve = resolve;
+                document.getElementById('confirmModalTitle').textContent = title;
+                document.getElementById('confirmModalMessage').textContent = message;
+                document.getElementById('confirmModalBtn').textContent = confirmLabel;
+                document.getElementById('confirmModal').style.display = 'flex';
+            });
+        }
+
+        function resolveConfirmModal(value) {
+            document.getElementById('confirmModal').style.display = 'none';
+            if (confirmResolve) { confirmResolve(value); confirmResolve = null; }
+        }
+        
+        // Server-side passcode verification with modal
+        let passcodeResolve = null;
+        
+        function verifyPasscode(message = 'Passcode required to continue.') {
+            return new Promise((resolve) => {
+                passcodeResolve = resolve;
+                document.getElementById('passcodeMessage').textContent = message;
+                document.getElementById('passcodeInput').value = '';
+                document.getElementById('passcodeModal').style.display = 'flex';
+                document.getElementById('passcodeInput').focus();
+            });
+        }
+        
+        function cancelPasscode() {
+            document.getElementById('passcodeModal').style.display = 'none';
+            if (passcodeResolve) {
+                passcodeResolve(false);
+                passcodeResolve = null;
+            }
+        }
+        
+        // Hash a string with SHA-256
+        async function sha256(text) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(text);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+        
+        async function submitPasscode() {
+            const passcode = document.getElementById('passcodeInput').value;
+            if (!passcode) {
+                showToast('Please enter passcode');
+                return;
+            }
+            
+            try {
+                // Step 1: Get a one-time nonce from server
+                const nonceRes = await fetch(`${API_URL}/verify_passcode.php`);
+                const challenge = await nonceRes.json();
+                if (!challenge.nonce) {
+                    showToast('Failed to get challenge. Try again.');
+                    return;
+                }
+                
+                // Step 2: hash = sha256( sha256(passcode) + nonce )
+                const passcodeHash = await sha256(passcode);
+                const hash = await sha256(passcodeHash + challenge.nonce);
+                
+                // Step 3: Send the combined hash (different every time)
+                const verifyRes = await fetch(`${API_URL}/verify_passcode.php`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ hash })
+                });
+                const result = await verifyRes.json();
+                
+                document.getElementById('passcodeModal').style.display = 'none';
+                
+                if (result.valid) {
+                    if (passcodeResolve) {
+                        passcodeResolve(true);
+                        passcodeResolve = null;
+                    }
+                } else {
+                    showToast('Incorrect passcode!');
+                    if (passcodeResolve) {
+                        passcodeResolve(false);
+                        passcodeResolve = null;
+                    }
+                }
+            } catch (err) {
+                showToast('Error verifying passcode. Try again.');
+                document.getElementById('passcodeModal').style.display = 'none';
+                if (passcodeResolve) {
+                    passcodeResolve(false);
+                    passcodeResolve = null;
+                }
+            }
+        }
+
+        // API Helper
+        async function api(endpoint, method = 'GET', data = null) {
+            const options = {
+                method,
+                headers: { 'Content-Type': 'application/json' }
+            };
+            if (data) options.body = JSON.stringify(data);
+            
+            try {
+                const res = await fetch(`${API_URL}/${endpoint}`, options);
+                if (res.status === 401) { window.location.href = 'login.html'; return {}; }
+                return await res.json();
+            } catch (err) {
+                console.error('API Error:', err);
+                return { error: err.message };
+            }
+        }
+
+        // Save current items to database
+        async function save() {
+            if (!currentBatchId) return;
+            await api('batches.php', 'PUT', {
+                id: currentBatchId,
+                name: currentBatchName,
+                items: items
+            });
+        }
+
+        // Batch Management Functions
+        async function loadBatchList() {
+            const optionsContainer = document.getElementById('batchSelectOptions');
+            const batches = await api('batches.php');
+            
+            let html = '<div class="glider-container"><div class="glider" id="batchGlider"></div></div>';
+            html += '<div class="custom-select-option" data-value="" onclick="event.stopPropagation(); selectBatch(\'\', \'\')">-- Select Batch --</div>';
+            
+            if (Array.isArray(batches)) {
+                // Filter by tag if a filter is selected (batch must have the selected tag)
+                const filteredBatches = filterTagId 
+                    ? batches.filter(b => b.tags && b.tags.some(t => t.id == filterTagId))
+                    : batches;
+                
+                filteredBatches.forEach((batch) => {
+                    // Show tags with batch name if exists
+                    const tagLabels = batch.tags && batch.tags.length > 0 
+                        ? ` [${batch.tags.map(t => t.name).join(', ')}]` 
+                        : '';
+                    const displayName = batch.name + tagLabels;
+                    const isSelected = batch.id == currentBatchId;
+                    const selectedClass = isSelected ? 'selected' : '';
+                    const color = batch.tags && batch.tags.length > 0 ? `color:${batch.tags[0].color}` : '';
+                    html += `<div class="custom-select-option ${selectedClass}" data-value="${batch.id}" style="${color}" data-tooltip="${displayName}" onclick="event.stopPropagation(); selectBatch(${batch.id}, '${batch.name.replace(/'/g, "\\'")}${tagLabels.replace(/'/g, "\\'")}')">${displayName}</div>`;
+                });
+                
+                // Show message if no batches with tag
+                if (filterTagId && filteredBatches.length === 0) {
+                    html = '<div class="glider-container"><div class="glider" id="batchGlider"></div></div>';
+                    html += '<div class="custom-select-option" style="color:#6b7280;">-- No batches with this tag --</div>';
+                }
+                
+                // Update selected text if current batch exists
+                if (currentBatchId) {
+                    const current = filteredBatches.find(b => b.id == currentBatchId);
+                    if (current) {
+                        const tagLabels = current.tags && current.tags.length > 0 
+                            ? ` [${current.tags.map(t => t.name).join(', ')}]` 
+                            : '';
+                        document.getElementById('batchSelectText').textContent = current.name + tagLabels;
+                        document.getElementById('batchSelectValue').value = currentBatchId;
+                    }
+                }
+            }
+            
+            optionsContainer.innerHTML = html;
+            
+            if (currentBatchName) {
+                document.getElementById('batchName').value = currentBatchName;
+            }
+        }
+
+        async function saveBatch() {
+            const nameInput = document.getElementById('batchName');
+            const name = nameInput.value.trim();
+            
+            if (!name) {
+                await showAlert('Please enter a batch name');
+                return;
+            }
+            
+            if (!items.length) {
+                await showAlert('No items to save');
+                return;
+            }
+            
+            if (currentBatchId) {
+                // Update existing batch
+                await api('batches.php', 'PUT', {
+                    id: currentBatchId,
+                    name: name,
+                    items: items
+                });
+                currentBatchName = name;
+            } else {
+                // Create new batch
+                const result = await api('batches.php', 'POST', {
+                    name: name,
+                    items: items
+                });
+                if (result.id) {
+                    currentBatchId = result.id;
+                    currentBatchName = name;
+                }
+            }
+            
+            await loadBatchList();
+            showToast(`Batch "${name}" saved!`);
+        }
+
+        async function loadBatch() {
+            const batchId = document.getElementById('batchSelectValue').value;
+            
+            if (!batchId) return;
+            
+            const batch = await api(`batches.php?id=${batchId}`);
+            if (batch && batch.items) {
+                items = batch.items;
+                // Restore selections from Map
+                items.forEach(item => {
+                    item.selected = selectedItemsMap.has(item.id);
+                });
+                currentBatchId = batch.id;
+                currentBatchName = batch.name;
+                currentBatchTags = batch.tags || [];
+                document.getElementById('batchName').value = batch.name;
+                renderBatchTagsDisplay();
+                await loadTags(); // Re-render tag buttons with selection
+                render();
+                showToast(`Batch "${batch.name}" loaded!`);
+            }
+        }
+
+        async function deleteBatch() {
+            const batchId = document.getElementById('batchSelectValue').value;
+            const batchName = document.getElementById('batchSelectText').textContent;
+            
+            if (!batchId) {
+                await showAlert('Please select a batch to delete');
+                return;
+            }
+            
+            if (!(await showConfirm(`Delete batch "${batchName}"?`, 'Delete Batch', 'Delete'))) return;
+            
+            // Require passcode to delete
+            const verified = await verifyPasscode('Passcode required to delete batch.');
+            if (!verified) return;
+            
+            await api(`batches.php?id=${batchId}`, 'DELETE');
+            
+            if (currentBatchId == batchId) {
+                currentBatchId = null;
+                currentBatchName = '';
+                currentBatchTags = [];
+                items = [];
+                document.getElementById('batchName').value = '';
+                document.getElementById('batchSelectText').textContent = '-- Select Batch --';
+                document.getElementById('batchSelectValue').value = '';
+                renderBatchTagsDisplay();
+                render();
+            }
+            
+            await loadBatchList();
+            showToast(`Batch "${batchName}" deleted!`);
+        }
+
+        async function newBatch() {
+            if (items.length && !(await showConfirm('Start a new batch? Current unsaved items will be cleared.', 'New Batch', 'Continue'))) {
+                return;
+            }
+            
+            items = [];
+            currentBatchId = null;
+            currentBatchName = '';
+            currentBatchTags = [];
+            document.getElementById('batchName').value = '';
+            document.getElementById('batchSelectValue').value = '';
+            document.getElementById('batchSelectText').textContent = '-- Select Batch --';
+            renderBatchTagsDisplay();
+            loadTags(); // Re-render tag buttons
+            render();
+            showToast('New batch started!');
+        }
+
+        function formatDate(d) {
+            if (!d) return '-';
+            const date = new Date(d + 'T00:00:00');
+            return `${monthNames[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+        }
+
+        function formatTime(t) {
+            if (!t) return '-';
+            const [h, m] = t.split(':').map(Number);
+            const period = h >= 12 ? 'PM' : 'AM';
+            return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${period}`;
+        }
+
+        function getGap(index) {
+            if (index === 0) return '0hrs';
+            const prev = items[index - 1];
+            const curr = items[index];
+            
+            const prevDT = new Date(`${prev.date}T${prev.time || '00:00'}`);
+            const currDT = new Date(`${curr.date}T${curr.time || '00:00'}`);
+            
+            const mins = Math.round((currDT - prevDT) / 60000);
+            if (mins < 0) return '0hrs';
+            
+            const h = Math.floor(mins / 60);
+            const m = mins % 60;
+            
+            if (h === 0 && m === 0) return '0hrs';
+            if (h === 0) return `${m}mins`;
+            
+            // If 100+ hours, also show days
+            if (h >= 100) {
+                const days = Math.floor(h / 24);
+                const remainingHrs = h % 24;
+                let dayPart = `${days}d`;
+                if (remainingHrs > 0) dayPart += ` ${remainingHrs}hrs`;
+                if (m > 0) dayPart += ` ${m}mins`;
+                return `${h}hrs / ${dayPart}`;
+            }
+            
+            if (m === 0) return `${h}hrs`;
+            return `${h}hrs ${m}mins`;
+        }
+
+        function getLabelClass(label) {
+            const map = {
+                'Warm Up Text': 'label-warm-up',
+                'Dynamic Call': 'label-dynamic-call',
+                'Special Text': 'label-special-text',
+                'Call Reminder': 'label-call-reminder',
+                'Text Reminder': 'label-text-reminder',
+                'Event Day': 'label-event-day'
+            };
+            return map[label] || 'label-text-reminder';
+        }
+
+        function render() {
+            const tbody = document.getElementById('tableBody');
+            const empty = document.getElementById('emptyState');
+            const progress = document.getElementById('progressContainer');
+
+            // Update stats cards
+            const totalItems = items.length;
+            const completedItems = items.filter(i => i.checked).length;
+            const pendingItems = totalItems - completedItems;
+            document.getElementById('statTotal').textContent = totalItems;
+            document.getElementById('statCompleted').textContent = completedItems;
+            document.getElementById('statPending').textContent = pendingItems;
+
+            // Inline add row HTML
+            const batchNameValue = document.getElementById('batchName').value.trim();
+            const addDisabled = !batchNameValue;
+            
+            // Notice row when batch name is missing
+            const noticeRow = addDisabled ? `
+                <tr>
+                    <td colspan="10" style="background:#1a1a1a;padding:16px;text-align:center;">
+                        <div id="batchNameWarning" style="color:#f59e0b;font-size:0.9rem;cursor:pointer;" onmouseenter="showBatchNameArrow()" onmouseleave="hideBatchNameArrow()">
+                            <strong>⚠ Please enter a Batch Name first before adding items</strong>
+                        </div>
+                    </td>
+                </tr>
+            ` : '';
+            
+            const addRowHtml = `
+                ${noticeRow}
+                <tr id="inlineAddRow" class="add-row" style="background: #1a1a1a;">
+                    <td class="check-cell">-</td>
+                    <td class="check-cell">+</td>
+                    <td><input type="text" id="inlineName" placeholder="${addDisabled ? 'Enter batch name first' : 'Subitem name'}" style="width:100%;padding:6px;font-size:0.85rem;" ${addDisabled ? 'disabled' : ''}></td>
+                    <td>
+                        <select id="inlineLabel" style="width:100%;padding:6px;font-size:0.85rem;" ${addDisabled ? 'disabled' : ''}>
+                            <option value="Warm Up Text">Warm Up</option>
+                            <option value="Dynamic Call">Dynamic Call</option>
+                            <option value="Special Text">Special Text</option>
+                            <option value="Call Reminder">Call Reminder</option>
+                            <option value="Text Reminder" selected>Text Reminder</option>
+                            <option value="Event Day">Event Day</option>
+                        </select>
+                    </td>
+                    <td>
+                        <div class="date-picker" style="width:100%;">
+                            <input type="text" id="inlineDate" class="date-picker-input" placeholder="Select date" readonly style="width:100%;padding:6px;font-size:0.85rem;" ${addDisabled ? 'disabled' : ''}>
+                            <input type="hidden" id="inlineDateValue">
+                            <div class="calendar-dropdown" id="inlineCalendar">
+                                <div class="calendar-header">
+                                    <span class="month-year" id="inlineCalendarMonth"></span>
+                                    <div class="calendar-nav">
+                                        <button type="button" onclick="changeMonth('inline', -1)">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,18 9,12 15,6"/></svg>
+                                        </button>
+                                        <button type="button" onclick="changeMonth('inline', 1)">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,6 15,12 9,18"/></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="calendar-grid" id="inlineCalendarGrid"></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="time-picker" style="width:100%;">
+                            <input type="text" id="inlineTime" class="time-picker-input" placeholder="Select time" readonly style="width:100%;padding:6px;font-size:0.85rem;" ${addDisabled ? 'disabled' : ''}>
+                            <input type="hidden" id="inlineTimeValue">
+                            <div class="time-dropdown" id="inlineTimePicker">
+                                <div class="time-dropdown-header">Select Time</div>
+                                <div class="time-columns">
+                                    <div class="time-column">
+                                        <div class="time-column-label">Hour</div>
+                                        <div class="time-scroll" id="inlineHourScroll"></div>
+                                    </div>
+                                    <div class="time-divider">:</div>
+                                    <div class="time-column">
+                                        <div class="time-column-label">Min</div>
+                                        <div class="time-scroll" id="inlineMinuteScroll"></div>
+                                    </div>
+                                    <div class="time-column">
+                                        <div class="time-column-label">Period</div>
+                                        <div class="time-scroll" id="inlinePeriodScroll"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td><button class="btn btn-success" style="padding:4px 10px;font-size:0.75rem;${addDisabled ? 'opacity:0.5;cursor:not-allowed' : ''}" onclick="addInline()" ${addDisabled ? 'disabled title="Enter batch name first"' : 'title="Add new item"'}>+</button></td>
+                </tr>
+            `;
+
+            if (items.length === 0) {
+                tbody.innerHTML = addRowHtml;
+                empty.style.display = 'none';
+                progress.style.display = 'none';
+                
+                // Set default date/time and init pickers
+                setTimeout(() => {
+                    const today = new Date();
+                    const dateStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+                    setDatePickerValue('inline', dateStr);
+                    setTimePickerValue('inline', '10:00');
+                    initDatePicker('inline');
+                    initTimePicker('inline');
+                }, 0);
+                return;
+            }
+
+            empty.style.display = 'none';
+            progress.style.display = 'block';
+
+            const checked = items.filter(i => i.checked).length;
+            const pct = Math.round((checked / items.length) * 100);
+            document.getElementById('progressFill').style.width = `${pct}%`;
+            document.getElementById('progressText').textContent = `${checked} of ${items.length} completed`;
+            document.getElementById('progressPercent').textContent = `${pct}%`;
+
+            tbody.innerHTML = items.map((item, i) => `
+                <tr class="${item.checked ? 'checked' : ''}">
+                    <td class="check-cell">
+                        <input type="checkbox" ${item.selected ? 'checked' : ''} onchange="toggleSelect(${item.id})" title="Select this item for gap calculation">
+                    </td>
+                    <td class="check-cell">
+                        <input type="checkbox" ${item.checked ? 'checked' : ''} onchange="toggle(${item.id})" title="Mark as done/completed">
+                    </td>
+                    <td>${item.name}</td>
+                    <td><span class="label-badge ${getLabelClass(item.label)}">${item.label}</span></td>
+                    <td>${formatDate(item.date)}</td>
+                    <td>${formatTime(item.time)}</td>
+                    <td class="gap-cell">${getGap(i)}</td>
+                    <td class="check-cell">
+                        <input type="checkbox" ${item.timeOk ? 'checked' : ''} onchange="toggleTimeOk(${item.id})" title="Confirm time is correct on external platforms">
+                    </td>
+                    <td class="check-cell">
+                        <input type="checkbox" ${item.crmOk ? 'checked' : ''} onchange="toggleCrmOk(${item.id})" title="Confirm data entered correctly in CRM">
+                    </td>
+                    <td style="white-space:nowrap;">
+                        <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.75rem;margin-right:4px" onclick="openEditModal(${item.id})" title="Edit this item">Edit</button>
+                        <button class="btn btn-danger" style="padding:4px 10px;font-size:0.75rem" onclick="remove(${item.id})" title="Delete this item">×</button>
+                    </td>
+                </tr>
+            `).join('') + addRowHtml;
+            
+            // Set default date/time for inline input and init pickers
+            setTimeout(() => {
+                const today = new Date();
+                const dateStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+                setDatePickerValue('inline', dateStr);
+                setTimePickerValue('inline', '10:00');
+                initDatePicker('inline');
+                initTimePicker('inline');
+            }, 0);
+        }
+
+        async function addInline() {
+            const batchName = document.getElementById('batchName').value.trim();
+            if (!batchName) {
+                await showAlert('Please enter a batch name first before adding items.');
+                document.getElementById('batchName').focus();
+                return;
+            }
+            
+            const name = document.getElementById('inlineName').value.trim();
+            const label = document.getElementById('inlineLabel').value;
+            const date = getDatePickerValue('inline');
+            const time = getTimePickerValue('inline');
+
+            if (!name || !date) {
+                await showAlert('Please enter name and date');
+                return;
+            }
+
+            // Check for duplicate name - block if exists
+            const duplicate = items.find(item => item.name.toLowerCase() === name.toLowerCase());
+            if (duplicate) {
+                const existingDate = formatDate(duplicate.date);
+                const existingTime = formatTime(duplicate.time);
+                await showAlert(`Duplicate not allowed!\n\n"${name}" already exists:\n• Date: ${existingDate}\n• Time: ${existingTime}`, 'Duplicate Item');
+                return;
+            }
+
+            const isFirstItem = items.length === 0;
+
+            items.push({ id: Date.now(), name, label, date, time, checked: false, timeOk: false, crmOk: false });
+            // Items maintain insertion order - no auto-sorting by date
+            
+            await save();
+            render();
+            
+            if (isFirstItem) {
+                showToast('Item added!');
+                // Show tooltip pointing to Save button
+                setTimeout(() => {
+                    const saveBtn = document.getElementById('saveBtn');
+                    if (saveBtn) {
+                        showTooltip(saveBtn, 'Remember to SAVE your batch!');
+                        setTimeout(() => hideTooltip(), 5000);
+                    }
+                }, 500);
+            } else {
+                showToast('Item added!');
+            }
+        }
+
+        async function toggle(id) {
+            const item = items.find(i => i.id === id);
+            if (item) {
+                // If unchecking, require server-side passcode verification
+                if (item.checked) {
+                    const verified = await verifyPasscode('Passcode required to uncheck this item.');
+                    if (!verified) {
+                        render(); // Re-render to restore checkbox state
+                        return;
+                    }
+                }
+                item.checked = !item.checked;
+                await save();
+                render();
+            }
+        }
+
+        function toggleSelect(id) {
+            const item = items.find(i => i.id === id);
+            if (item) {
+                item.selected = !item.selected;
+                // Persist selection in Map
+                if (item.selected) {
+                    selectedItemsMap.set(id, {...item});
+                } else {
+                    selectedItemsMap.delete(id);
+                }
+                updateSelectionCount();
+                render();
+            }
+        }
+        
+        function updateSelectionCount() {
+            const count = selectedItemsMap.size;
+            const countEl = document.getElementById('selectionCount');
+            if (count > 0) {
+                countEl.textContent = count;
+                countEl.style.display = 'inline';
+            } else {
+                countEl.style.display = 'none';
+            }
+        }
+
+        async function calculateSelectedGap() {
+            // Use selectedItemsMap for cross-batch selections
+            const selectedItems = Array.from(selectedItemsMap.values());
+            
+            if (selectedItems.length < 2) {
+                await showAlert('Please select at least 2 items to calculate the gap.');
+                return;
+            }
+            
+            // Sort by date and time
+            selectedItems.sort((a, b) => {
+                const dateA = new Date(`${a.date}T${a.time || '00:00'}`);
+                const dateB = new Date(`${b.date}T${b.time || '00:00'}`);
+                return dateA - dateB;
+            });
+            
+            // Calculate total gap between first and last selected item
+            const firstItem = selectedItems[0];
+            const lastItem = selectedItems[selectedItems.length - 1];
+            
+            const firstDT = new Date(`${firstItem.date}T${firstItem.time || '00:00'}`);
+            const lastDT = new Date(`${lastItem.date}T${lastItem.time || '00:00'}`);
+            
+            const mins = Math.round((lastDT - firstDT) / 60000);
+            
+            let gapText = '';
+            if (mins < 0) {
+                gapText = 'Invalid (negative time)';
+            } else {
+                const h = Math.floor(mins / 60);
+                const m = mins % 60;
+                
+                if (h === 0 && m === 0) {
+                    gapText = '0hrs';
+                } else if (h === 0) {
+                    gapText = `${m}mins`;
+                } else if (h >= 100) {
+                    const days = Math.floor(h / 24);
+                    const remainingHrs = h % 24;
+                    gapText = `${h}hrs / ${days}d ${remainingHrs}hrs`;
+                    if (m > 0) gapText += ` ${m}mins`;
+                } else if (m === 0) {
+                    gapText = `${h}hrs`;
+                } else {
+                    gapText = `${h}hrs ${m}mins`;
+                }
+            }
+            
+            // Show result in modal
+            document.getElementById('gapSelectedCount').textContent = selectedItems.length;
+            document.getElementById('gapFromItem').textContent = firstItem.name;
+            document.getElementById('gapToItem').textContent = lastItem.name;
+            document.getElementById('gapResultValue').textContent = gapText;
+            document.getElementById('gapResultModal').style.display = 'flex';
+        }
+
+        function closeGapResultModal() {
+            document.getElementById('gapResultModal').style.display = 'none';
+            document.getElementById('gapCasinoName').value = '';
+            document.getElementById('gapPreviewName').textContent = '[Casino] Gifting Activate/Reminder Automated';
+        }
+
+        function updateGapPreview() {
+            const casino = document.getElementById('gapCasinoName').value.trim().toUpperCase();
+            const preview = document.getElementById('gapPreviewName');
+            if (casino) {
+                preview.textContent = `${casino} Gifting Activate/Reminder Automated`;
+            } else {
+                preview.textContent = '[Casino] Gifting Activate/Reminder Automated';
+            }
+        }
+
+        async function saveGapToWorkflow() {
+            const casinoName = document.getElementById('gapCasinoName').value.trim().toUpperCase();
+            const gapValue = document.getElementById('gapResultValue').textContent;
+            const fromItem = document.getElementById('gapFromItem').textContent;
+            const toItem = document.getElementById('gapToItem').textContent;
+            const selectedCount = document.getElementById('gapSelectedCount').textContent;
+            
+            if (!casinoName) {
+                await showAlert('Please enter a casino name');
+                return;
+            }
+            
+            // Combine casino name with static workflow type
+            const workflowName = `${casinoName} Gifting Activate/Reminder Automated`;
+            
+            // Save to database via API
+            const result = await api('workflow_gaps.php', 'POST', {
+                workflow: workflowName,
+                gap: gapValue,
+                fromItem: fromItem,
+                toItem: toItem,
+                selectedCount: parseInt(selectedCount)
+            });
+            
+            if (result.error) {
+                await showAlert('Failed to save: ' + result.error, 'Error');
+                return;
+            }
+            
+            closeGapResultModal();
+            showToast(`Gap saved for "${workflowName}"!`);
+            
+            // Clear selection after saving
+            items.forEach(item => item.selected = false);
+            selectedItemsMap.clear();
+            updateSelectionCount();
+            render();
+        }
+
+        async function viewWorkflowGaps() {
+            const workflowGaps = await api('workflow_gaps.php');
+            const listContainer = document.getElementById('workflowGapsList');
+            
+            if (!Array.isArray(workflowGaps) || workflowGaps.length === 0) {
+                listContainer.innerHTML = '<p style="color:#a3a3a3;text-align:center;padding:20px;">No saved workflow gaps yet.</p>';
+            } else {
+                listContainer.innerHTML = workflowGaps.map((gap, index) => `
+                    <div style="background:#0a0a0a;border:1px solid #333;border-radius:8px;padding:16px;margin-bottom:12px;">
+                        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;">
+                            <h3 style="color:#fff;font-size:1rem;margin:0;">${gap.workflow}</h3>
+                            <button class="btn btn-danger" style="padding:2px 8px;font-size:0.7rem;" onclick="deleteWorkflowGap(${gap.id})">×</button>
+                        </div>
+                        <div style="background:#22c55e;color:#000;padding:10px;border-radius:6px;text-align:center;margin-bottom:10px;">
+                            <span style="font-weight:bold;font-size:1.2rem;">${gap.gap}</span>
+                        </div>
+                        <p style="color:#a3a3a3;font-size:0.8rem;margin:4px 0;">From: <span style="color:#fff;">${gap.from_item}</span></p>
+                        <p style="color:#a3a3a3;font-size:0.8rem;margin:4px 0;">To: <span style="color:#fff;">${gap.to_item}</span></p>
+                        <p style="color:#a3a3a3;font-size:0.8rem;margin:4px 0;">Items: <span style="color:#fff;">${gap.selected_count}</span></p>
+                        <p style="color:#525252;font-size:0.7rem;margin-top:8px;">Saved: ${new Date(gap.saved_at).toLocaleString()}</p>
+                    </div>
+                `).join('');
+            }
+            
+            document.getElementById('workflowGapsModal').style.display = 'flex';
+        }
+
+        function closeWorkflowGapsModal() {
+            document.getElementById('workflowGapsModal').style.display = 'none';
+        }
+
+        async function deleteWorkflowGap(id) {
+            await api(`workflow_gaps.php?id=${id}`, 'DELETE');
+            viewWorkflowGaps(); // Refresh the list
+            showToast('Workflow gap deleted!');
+        }
+
+        async function clearWorkflowGaps() {
+            if (await showConfirm('Clear all saved workflow gaps?', 'Clear Gaps', 'Clear All')) {
+                await api('workflow_gaps.php?all=1', 'DELETE');
+                viewWorkflowGaps(); // Refresh the list
+                showToast('All workflow gaps cleared!');
+            }
+        }
+
+        async function toggleTimeOk(id) {
+            const item = items.find(i => i.id === id);
+            if (item) {
+                // If unchecking, require server-side passcode verification
+                if (item.timeOk) {
+                    const verified = await verifyPasscode('Passcode required to uncheck this item.');
+                    if (!verified) {
+                        render(); // Re-render to restore checkbox state
+                        return;
+                    }
+                }
+                item.timeOk = !item.timeOk;
+                await save();
+                render();
+            }
+        }
+
+        async function toggleCrmOk(id) {
+            const item = items.find(i => i.id === id);
+            if (item) {
+                // If unchecking, require server-side passcode verification
+                if (item.crmOk) {
+                    const verified = await verifyPasscode('Passcode required to uncheck this item.');
+                    if (!verified) {
+                        render(); // Re-render to restore checkbox state
+                        return;
+                    }
+                }
+                item.crmOk = !item.crmOk;
+                await save();
+                render();
+            }
+        }
+
+        function remove(id) {
+            const item = items.find(i => i.id === id);
+            if (!item) return;
+            
+            document.getElementById('deleteItemId').value = id;
+            document.getElementById('deleteItemName').textContent = `"${item.name}"`;
+            document.getElementById('deleteModal').style.display = 'flex';
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').style.display = 'none';
+        }
+
+        async function confirmDelete() {
+            // Require passcode to delete item
+            const verified = await verifyPasscode('Passcode required to delete item.');
+            if (!verified) return;
+            
+            const id = parseInt(document.getElementById('deleteItemId').value);
+            items = items.filter(i => i.id !== id);
+            await save();
+            render();
+            closeDeleteModal();
+            showToast('Item deleted!');
+        }
+
+        async function clearAll() {
+            if (await showConfirm('Clear all items from view?\n\nData remains saved in database.', 'Clear All', 'Clear')) {
+                items = [];
+                currentBatchId = null;
+                currentBatchName = '';
+                selectedItemsMap.clear();
+                updateSelectionCount();
+                document.getElementById('batchName').value = '';
+                document.getElementById('batchSelect').value = '';
+                render();
+                showToast('View cleared! Data still saved in database.');
+            }
+        }
+
+        // Edit Functions
+        function openEditModal(id) {
+            const item = items.find(i => i.id === id);
+            if (!item) return;
+            
+            document.getElementById('editItemId').value = id;
+            document.getElementById('editName').value = item.name;
+            document.getElementById('editLabel').value = item.label;
+            setDatePickerValue('edit', item.date);
+            setTimePickerValue('edit', item.time || '10:00');
+            
+            document.getElementById('editModal').style.display = 'flex';
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+            document.getElementById('editCalendar').classList.remove('show');
+            document.getElementById('editTimePicker').classList.remove('show');
+        }
+
+        async function saveEdit() {
+            const id = parseInt(document.getElementById('editItemId').value);
+            const name = document.getElementById('editName').value.trim();
+            const label = document.getElementById('editLabel').value;
+            const date = getDatePickerValue('edit');
+            const time = getTimePickerValue('edit');
+            
+            if (!name || !date) {
+                await showAlert('Please enter name and date');
+                return;
+            }
+            
+            // Check for duplicate (excluding current item)
+            const duplicate = items.find(item => item.id !== id && item.name.toLowerCase() === name.toLowerCase());
+            if (duplicate) {
+                const existingDate = formatDate(duplicate.date);
+                const existingTime = formatTime(duplicate.time);
+                await showAlert(`Duplicate not allowed!\n\n"${name}" already exists:\n• Date: ${existingDate}\n• Time: ${existingTime}`, 'Duplicate Item');
+                return;
+            }
+            
+            const item = items.find(i => i.id === id);
+            if (item) {
+                item.name = name;
+                item.label = label;
+                item.date = date;
+                item.time = time;
+                
+                await save();
+                render();
+                closeEditModal();
+                showToast('Item updated!');
+            }
+        }
+
+        async function exportExcel() {
+            if (!items.length) { await showAlert('No items to export'); return; }
+            showExportModal('excel');
+        }
+
+        async function exportPDF() {
+            if (!items.length) { await showAlert('No items to export'); return; }
+            showExportModal('pdf');
+        }
+
+        let currentExportType = '';
+
+        async function showExportModal(type) {
+            currentExportType = type;
+            
+            // Clear all fields
+            document.getElementById('exportWorkflow').value = '';
+            document.getElementById('exportName').value = '';
+            document.getElementById('exportOrg').value = '';
+            document.getElementById('exportCasino').value = '';
+            document.getElementById('exportDates').value = '';
+            
+            // Populate workflow gaps dropdown from database
+            const workflowGaps = await api('workflow_gaps.php');
+            const select = document.getElementById('exportWorkflowGap');
+            select.innerHTML = '<option value="">-- None --</option>';
+            if (Array.isArray(workflowGaps)) {
+                workflowGaps.forEach(gap => {
+                    const opt = document.createElement('option');
+                    opt.value = gap.id;
+                    // Truncate long names to fit dropdown
+                    const maxLen = 35;
+                    const name = gap.workflow.length > maxLen ? gap.workflow.substring(0, maxLen) + '...' : gap.workflow;
+                    opt.textContent = `${name} (${gap.gap})`;
+                    opt.title = `${gap.workflow} (${gap.gap})`; // Full text on hover
+                    select.appendChild(opt);
+                });
+            }
+            
+            // Reset preview
+            document.getElementById('selectedGapPreview').style.display = 'none';
+            
+            document.getElementById('exportModal').style.display = 'flex';
+            document.getElementById('modalExportBtn').onclick = doExport;
+        }
+
+        async function fillWorkflowGapDetails() {
+            const select = document.getElementById('exportWorkflowGap');
+            const preview = document.getElementById('selectedGapPreview');
+            const gapValue = document.getElementById('selectedGapValue');
+            
+            if (!select.value) {
+                preview.style.display = 'none';
+                return;
+            }
+            
+            const workflowGaps = await api('workflow_gaps.php');
+            const selectedGap = workflowGaps.find(g => g.id == select.value);
+            
+            if (selectedGap) {
+                gapValue.textContent = selectedGap.gap;
+                preview.style.display = 'block';
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('exportModal').style.display = 'none';
+        }
+
+        async function doExport() {
+            const workflow = document.getElementById('exportWorkflow').value.trim() || 'Not specified';
+            const name = document.getElementById('exportName').value.trim() || 'Not specified';
+            const org = document.getElementById('exportOrg').value.trim() || 'Not specified';
+            const casino = document.getElementById('exportCasino').value.trim() || 'Not specified';
+            const dates = document.getElementById('exportDates').value.trim() || 'Not specified';
+            
+            // Get selected workflow gap from database
+            const gapSelect = document.getElementById('exportWorkflowGap');
+            let workflowGapInfo = null;
+            if (gapSelect.value) {
+                const workflowGaps = await api('workflow_gaps.php');
+                const selectedGap = workflowGaps.find(g => g.id == gapSelect.value);
+                if (selectedGap) {
+                    workflowGapInfo = {
+                        workflow: selectedGap.workflow,
+                        gap: selectedGap.gap,
+                        fromItem: selectedGap.from_item,
+                        toItem: selectedGap.to_item
+                    };
+                }
+            }
+            
+            closeModal();
+            
+            if (currentExportType === 'excel') {
+                doExportExcel(workflow, name, org, casino, dates, workflowGapInfo);
+            } else {
+                doExportPDF(workflow, name, org, casino, dates, workflowGapInfo);
+            }
+        }
+
+        function doExportExcel(workflow, name, org, casino, dates, workflowGapInfo) {
+            // Create HTML table with borders for Excel
+            let gapHtml = '';
+            if (workflowGapInfo) {
+                gapHtml = `
+                    <div class="info" style="margin-top:10px;padding:8px;background:#e0ffe0;border:1px solid #22c55e;">
+                        <strong>Workflow Gap:</strong> ${workflowGapInfo.workflow}<br>
+                        <strong>Gap:</strong> ${workflowGapInfo.gap} (From: ${workflowGapInfo.fromItem} → To: ${workflowGapInfo.toItem})
+                    </div>
+                `;
+            }
+            
+            let html = `
+                <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
+                <head><meta charset="UTF-8">
+                <style>
+                    table { border-collapse: collapse; width: 100%; margin-top: 15px; }
+                    th, td { border: 1px solid #000; padding: 8px; text-align: left; }
+                    th { background-color: #000; color: #fff; font-weight: bold; }
+                    tr:nth-child(even) { background-color: #f0f0f0; }
+                    .header-section { text-align: center; margin-bottom: 15px; }
+                    .title { font-size: 20px; font-weight: bold; margin-bottom: 10px; }
+                    .info { margin-bottom: 5px; font-size: 12px; }
+                </style>
+                </head><body>
+                <div class="header-section">
+                    <div class="title">CRM Checklist</div>
+                    <div class="info"><strong>Workflow:</strong> ${workflow}</div>
+                    <div class="info"><strong>Assigned To:</strong> ${name}</div>
+                    <div class="info"><strong>Organization:</strong> ${org}</div>
+                    <div class="info"><strong>Casino:</strong> ${casino}</div>
+                    <div class="info"><strong>Campaign Dates:</strong> ${dates}</div>
+                    <div class="info"><strong>Generated:</strong> ${new Date().toLocaleDateString()}</div>
+                    ${gapHtml}
+                </div>
+                <table>
+                    <tr>
+                        <th>Done</th>
+                        <th>Subitem</th>
+                        <th>Label</th>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Gap</th>
+                        <th>Time OK</th>
+                        <th>CRM OK</th>
+                    </tr>`;
+            
+            items.forEach((item, i) => {
+                html += `<tr>
+                    <td>${item.checked ? 'Yes' : 'No'}</td>
+                    <td>${item.name}</td>
+                    <td>${item.label}</td>
+                    <td>${formatDate(item.date)}</td>
+                    <td>${formatTime(item.time)}</td>
+                    <td>${getGap(i)}</td>
+                    <td>${item.timeOk ? 'Yes' : 'No'}</td>
+                    <td>${item.crmOk ? 'Yes' : 'No'}</td>
+                </tr>`;
+            });
+            
+            html += '</table></body></html>';
+            
+            const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'crm_checklist.xls';
+            a.click();
+        }
+
+        function doExportPDF(workflow, name, org, casino, dates, workflowGapInfo) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            
+            // Calculate total content height to center vertically
+            const titleHeight = 10;
+            const lineHeight = 5;
+            const infoHeight = 30;
+            const tableRowHeight = 8;
+            const tableHeaderHeight = 10;
+            const totalTableHeight = tableHeaderHeight + (items.length * tableRowHeight);
+            const totalContentHeight = titleHeight + lineHeight + infoHeight + totalTableHeight + 20;
+            
+            // Start Y position to center content vertically
+            const startY = Math.max(20, (pageHeight - totalContentHeight) / 2);
+            
+            // Title - Workflow name centered with document font
+            doc.setFontSize(25);
+            doc.setFont('times', 'bold');
+            doc.text(workflow.toUpperCase(), pageWidth / 2, startY, { align: 'center' });
+            
+            // Underline below title
+            doc.setLineWidth(0.5);
+            doc.line(20, startY + 5, pageWidth - 20, startY + 5);
+            
+            // Info section - left aligned with document font
+            doc.setFontSize(12);
+            doc.setFont('times', 'normal');
+            const infoStartY = startY + 17;
+            doc.text(`Assigned To: ${name}`, 20, infoStartY);
+            doc.text(`Organization: ${org}`, 20, infoStartY + 6);
+            doc.text(`Casino: ${casino}`, 20, infoStartY + 12);
+            doc.text(`Campaign Dates: ${dates}`, 20, infoStartY + 18);
+            doc.text(`Generated: ${new Date().toLocaleDateString()}`, 20, infoStartY + 24);
+            
+            // Table data
+            const headers = [['Done', 'Subitem', 'Label', 'Date', 'Time', 'Gap', 'Time OK', 'CRM OK']];
+            const rows = items.map((item, i) => [
+                item.checked ? 'Yes' : 'No',
+                item.name,
+                item.label,
+                formatDate(item.date),
+                formatTime(item.time),
+                getGap(i),
+                item.timeOk ? 'Yes' : 'No',
+                item.crmOk ? 'Yes' : 'No'
+            ]);
+            
+            // Generate table with borders - with margins
+            doc.autoTable({
+                head: headers,
+                body: rows,
+                startY: infoStartY + 35,
+                theme: 'grid',
+                tableWidth: 'auto',
+                margin: { left: 14, right: 14 },
+                headStyles: {
+                    fillColor: [255, 255, 255],
+                    textColor: [0, 0, 0],
+                    fontStyle: 'bold',
+                    halign: 'center',
+                    lineWidth: 0.3,
+                    lineColor: [0, 0, 0],
+                    fontSize: 8
+                },
+                bodyStyles: {
+                    fontSize: 8,
+                    textColor: [0, 0, 0],
+                    lineWidth: 0.3,
+                    lineColor: [0, 0, 0],
+                    halign: 'center'
+                },
+                alternateRowStyles: {
+                    fillColor: [255, 255, 255]
+                },
+                columnStyles: {
+                    0: { cellWidth: 14, halign: 'center' },
+                    1: { cellWidth: 42, halign: 'center' },
+                    2: { cellWidth: 24, halign: 'center' },
+                    3: { cellWidth: 24, halign: 'center' },
+                    4: { cellWidth: 18, halign: 'center' },
+                    5: { cellWidth: 28, halign: 'center' },
+                    6: { cellWidth: 16, halign: 'center' },
+                    7: { cellWidth: 16, halign: 'center' }
+                }
+            });
+            
+            // Add workflow gap info at the bottom after table
+            if (workflowGapInfo) {
+                const finalY = doc.lastAutoTable.finalY + 15;
+                
+                // Draw a box for the workflow gap section
+                doc.setDrawColor(0);
+                doc.setLineWidth(0.5);
+                doc.rect(14, finalY - 5, pageWidth - 28, 28);
+                
+                doc.setFontSize(11);
+                doc.setFont('times', 'bold');
+                doc.text('Workflow Gap Summary', pageWidth / 2, finalY, { align: 'center' });
+                
+                doc.setFontSize(10);
+                doc.setFont('times', 'normal');
+                doc.text(`Workflow: ${workflowGapInfo.workflow}`, 20, finalY + 8);
+                doc.text(`Total Gap: ${workflowGapInfo.gap}`, 20, finalY + 14);
+                doc.text(`From: ${workflowGapInfo.fromItem}`, 20, finalY + 20);
+                doc.text(`To: ${workflowGapInfo.toItem}`, pageWidth / 2, finalY + 20);
+            }
+            
+            doc.save('crm_checklist.pdf');
+        }
+
+        async function copyAll() {
+            if (!items.length) { await showAlert('No items to copy'); return; }
+            const text = items.map((item, i) => 
+                `${item.checked ? '✓' : '○'} ${item.name} | ${item.label} | ${formatDate(item.date)} ${formatTime(item.time)} | ${getGap(i)} | Time:${item.timeOk ? '✓' : '○'} | CRM:${item.crmOk ? '✓' : '○'}`
+            ).join('\n');
+            
+            navigator.clipboard.writeText(text).then(() => showToast('Copied!'));
+        }
+
+        function showToast(msg, duration = 2000) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), duration);
+        }
+
+        // Tag Management Functions
+        let currentBatchTags = []; // Array of tag objects for current batch
+        let filterTagId = null; // For filtering batches
+        let allTags = [];
+        
+        async function loadTags() {
+            allTags = await api('tags.php');
+            renderTagButtons(allTags);
+            return allTags;
+        }
+        
+        function renderBatchTagsDisplay() {
+            const container = document.getElementById('batchTagsDisplay');
+            if (!currentBatchTags || currentBatchTags.length === 0) {
+                container.innerHTML = '<span style="color:#737373;font-size:0.85rem;">No tags</span>';
+                return;
+            }
+            
+            container.innerHTML = currentBatchTags.map(tag => `
+                <span style="background:${tag.color};color:#fff;padding:4px 10px;border-radius:12px;font-size:0.8rem;font-weight:500;">${tag.name}</span>
+            `).join('');
+        }
+        
+        function renderTagButtons(tags) {
+            const container = document.getElementById('tagButtons');
+            
+            if (!Array.isArray(tags) || tags.length === 0) {
+                container.innerHTML = '<span style="color:#737373;font-size:0.85rem;">No tags yet. Click "Manage Tags" to create.</span>';
+                return;
+            }
+            
+            // Add "All" button first (no filter)
+            let html = `<button class="tag-btn ${filterTagId === null ? 'active' : ''}" onclick="filterByTag(null)" style="background:${filterTagId === null ? '#404040' : '#1a1a1a'};color:#fff;border:2px solid ${filterTagId === null ? '#fff' : '#404040'};" data-tooltip="Show all batches">All</button>`;
+            
+            tags.forEach(tag => {
+                const isActive = filterTagId == tag.id;
+                html += `<button class="tag-btn ${isActive ? 'active' : ''}" onclick="filterByTag(${tag.id})" style="background:${isActive ? tag.color : '#1a1a1a'};color:${isActive ? '#fff' : tag.color};border:2px solid ${tag.color};" data-tooltip="Filter batches by ${tag.name}">${tag.name}</button>`;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        async function filterByTag(tagId) {
+            filterTagId = tagId;
+            renderTagButtons(allTags);
+            await loadBatchList();
+            showToast(tagId ? `Filtered by tag` : 'Showing all batches');
+        }
+        
+        // Multi-tag assignment modal functions
+        async function openAssignTagsModal() {
+            if (!currentBatchId) {
+                await showAlert('Please load or save a batch first');
+                return;
+            }
+            
+            const container = document.getElementById('assignTagsCheckboxes');
+            
+            if (!Array.isArray(allTags) || allTags.length === 0) {
+                container.innerHTML = '<p style="color:#737373;text-align:center;padding:20px;">No tags available. Create tags first using "Manage Tags".</p>';
+            } else {
+                const currentTagIds = currentBatchTags.map(t => t.id);
+                container.innerHTML = allTags.map(tag => `
+                    <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#0a0a0a;border-radius:6px;margin-bottom:6px;cursor:pointer;">
+                        <input type="checkbox" value="${tag.id}" ${currentTagIds.includes(parseInt(tag.id)) || currentTagIds.includes(tag.id) ? 'checked' : ''} style="width:18px;height:18px;cursor:pointer;">
+                        <span style="width:16px;height:16px;border-radius:50%;background:${tag.color};flex-shrink:0;"></span>
+                        <span style="color:#fff;">${tag.name}</span>
+                    </label>
+                `).join('');
+            }
+            
+            document.getElementById('assignTagsModal').style.display = 'flex';
+        }
+        
+        function closeAssignTagsModal() {
+            document.getElementById('assignTagsModal').style.display = 'none';
+        }
+        
+        async function saveAssignedTags() {
+            const checkboxes = document.querySelectorAll('#assignTagsCheckboxes input[type="checkbox"]:checked');
+            const tagIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+            
+            await api('tags.php', 'PUT', { 
+                batchId: currentBatchId, 
+                action: 'set',
+                tagIds: tagIds 
+            });
+            
+            // Update current batch tags
+            currentBatchTags = allTags.filter(t => tagIds.includes(parseInt(t.id)) || tagIds.includes(t.id));
+            renderBatchTagsDisplay();
+            
+            closeAssignTagsModal();
+            await loadBatchList();
+            showToast(tagIds.length > 0 ? `${tagIds.length} tag(s) assigned!` : 'Tags removed!');
+        }
+
+        async function openTagModal() {
+            await renderTagsList();
+            document.getElementById('tagModal').style.display = 'flex';
+            document.getElementById('newTagName').value = '';
+        }
+
+        function closeTagModal() {
+            document.getElementById('tagModal').style.display = 'none';
+        }
+
+        async function renderTagsList() {
+            const tags = await api('tags.php');
+            const container = document.getElementById('tagsList');
+            
+            if (!Array.isArray(tags) || tags.length === 0) {
+                container.innerHTML = '<p style="color:#737373;text-align:center;padding:20px;">No tags yet. Create one above.</p>';
+                return;
+            }
+            
+            container.innerHTML = tags.map(tag => `
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#0a0a0a;border-radius:6px;margin-bottom:6px;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <span style="width:16px;height:16px;border-radius:50%;background:${tag.color};"></span>
+                        <span style="color:#fff;">${tag.name}</span>
+                    </div>
+                    <button class="btn btn-danger" style="padding:4px 10px;font-size:0.75rem;" onclick="deleteTag(${tag.id})">Delete</button>
+                </div>
+            `).join('');
+        }
+
+        async function createTag() {
+            const name = document.getElementById('newTagName').value.trim();
+            const color = document.getElementById('newTagColor').value;
+            
+            if (!name) {
+                await showAlert('Please enter a tag name');
+                return;
+            }
+            
+            const result = await api('tags.php', 'POST', { name, color });
+            if (result.error) {
+                await showAlert(result.error, 'Error');
+                return;
+            }
+            
+            document.getElementById('newTagName').value = '';
+            await renderTagsList();
+            await loadTags();
+            showToast(`Tag "${name}" created!`);
+        }
+
+        async function deleteTag(id) {
+            if (!(await showConfirm('Delete this tag? It will be removed from all batches.', 'Delete Tag', 'Delete'))) return;
+            
+            await api(`tags.php?id=${id}`, 'DELETE');
+            // Remove from currentBatchTags if present
+            currentBatchTags = currentBatchTags.filter(t => t.id != id);
+            renderBatchTagsDisplay();
+            await renderTagsList();
+            await loadTags();
+            await loadBatchList();
+            showToast('Tag deleted!');
+        }
+
+        // Log visitor
+        async function logVisitor() {
+            try {
+                await api('visitors.php', 'POST', { name: 'Anonymous', page: 'CRM Checklist' });
+            } catch (e) {
+                console.log('Visitor logging skipped');
+            }
+        }
+
+        // Init
+        // Theme Toggle
+        function initTheme() {
+            const savedTheme = localStorage.getItem('crm-theme');
+            if (savedTheme) {
+                document.documentElement.setAttribute('data-theme', savedTheme);
+            }
+        }
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            
+            if (newTheme === 'dark') {
+                document.documentElement.removeAttribute('data-theme');
+            } else {
+                document.documentElement.setAttribute('data-theme', newTheme);
+            }
+            
+            localStorage.setItem('crm-theme', newTheme);
+        }
+
+        // Initialize theme on page load
+        initTheme();
+
+        // Theme toggle button event - DISABLED temporarily
+        // document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+
+        async function init() {
+            await loadBatchList();
+            await loadTags();
+            render();
+            logVisitor();
+            initDatePicker('edit');
+            initTimePicker('edit');
+        }
+        init();
+    </script>
+</body>
+</html>

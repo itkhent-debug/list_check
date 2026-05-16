@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visitor Log - CRM Checklist</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: #0a0a0a;
+            min-height: 100vh;
+            color: #e5e5e5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            color: #fff;
+            font-size: 1.75rem;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #a3a3a3;
+            margin-bottom: 30px;
+            font-size: 0.9rem;
+        }
+
+        .panel {
+            background: #171717;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            border: 1px solid #333;
+        }
+
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat-box {
+            background: #0a0a0a;
+            padding: 12px 20px;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+
+        .stat-box .number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #3b82f6;
+        }
+
+        .stat-box .label {
+            font-size: 0.75rem;
+            color: #a3a3a3;
+        }
+
+        .btn {
+            position: relative;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: 0.3s ease;
+            background: linear-gradient(to bottom right, #2e8eff 0%, rgba(46, 142, 255, 0) 30%);
+            background-color: rgba(46, 142, 255, 0.2);
+            color: #fff;
+            font-size: 0.9rem;
+            font-weight: 600;
+            padding: 14px 22px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            isolation: isolate;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            inset: 2px;
+            border-radius: 13px;
+            background-color: #1a1a1a;
+            z-index: -1;
+            transition: 0.3s ease;
+        }
+
+        .btn:hover,
+        .btn:focus {
+            background-color: rgba(46, 142, 255, 0.7);
+            box-shadow: 0 0 10px rgba(46, 142, 255, 0.5);
+            outline: none;
+        }
+
+        .btn:hover::before {
+            background-color: #222;
+        }
+
+        .btn-primary {
+            background: linear-gradient(to bottom right, #2e8eff 0%, rgba(46, 142, 255, 0) 30%);
+            background-color: rgba(46, 142, 255, 0.2);
+        }
+
+        .btn-primary:hover, .btn-primary:focus {
+            background-color: rgba(46, 142, 255, 0.7);
+            box-shadow: 0 0 10px rgba(46, 142, 255, 0.5);
+        }
+
+        .btn-danger {
+            background: linear-gradient(to bottom right, #dc2626 0%, rgba(220, 38, 38, 0) 30%);
+            background-color: rgba(220, 38, 38, 0.2);
+        }
+
+        .btn-danger:hover, .btn-danger:focus {
+            background-color: rgba(220, 38, 38, 0.7);
+            box-shadow: 0 0 10px rgba(220, 38, 38, 0.5);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(to bottom right, #6b7280 0%, rgba(107, 114, 128, 0) 30%);
+            background-color: rgba(107, 114, 128, 0.15);
+        }
+
+        .btn-secondary:hover, .btn-secondary:focus {
+            background-color: rgba(107, 114, 128, 0.6);
+            box-shadow: 0 0 10px rgba(107, 114, 128, 0.4);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        input, select {
+            border-radius: 0.8rem;
+            background: #1a1a1a;
+            padding: 1rem;
+            border: 1px solid transparent;
+            color: white;
+            font-size: 0.95rem;
+            transition: all 0.2s ease-in-out;
+            outline: none;
+        }
+
+        input:focus, select:focus {
+            border: 1px solid #3b82f6;
+            box-shadow:
+                inset 0px 0px 10px rgba(59, 130, 246, 0.5),
+                inset 0px 0px 10px rgba(96, 165, 250, 0.5),
+                0px 0px 50px rgba(59, 130, 246, 0.3),
+                0px 0px 100px rgba(96, 165, 250, 0.2);
+        }
+
+        input::placeholder {
+            color: #6b7280;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+
+        th {
+            background: #0a0a0a;
+            color: #a3a3a3;
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+        }
+
+        td {
+            color: #e5e5e5;
+            font-size: 0.9rem;
+        }
+
+        tr:hover {
+            background: #1f1f1f;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .badge-online {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+        }
+
+        .user-agent {
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 0.8rem;
+            color: #737373;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #737373;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 8px;
+            color: #a3a3a3;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #3b82f6;
+            text-decoration: none;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .header-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            table {
+                min-width: 600px;
+            }
+            
+            .stats {
+                width: 100%;
+            }
+            
+            .stat-box {
+                flex: 1;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="back-link">← Back to CRM Checklist</a>
+        
+        <h1>Visitor Log</h1>
+        <p class="subtitle">Track who's accessing the CRM Checklist</p>
+
+        <div class="panel">
+            <div class="header-row">
+                <div class="stats">
+                    <div class="stat-box">
+                        <div class="number" id="totalVisitors">0</div>
+                        <div class="label">Total Visits</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="number" id="todayVisitors">0</div>
+                        <div class="label">Today</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="number" id="uniqueIPs">0</div>
+                        <div class="label">Unique IPs</div>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-secondary" onclick="loadVisitors()">Refresh</button>
+                    <button class="btn btn-danger" onclick="clearLogs()">Clear All</button>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Name</th>
+                            <th>IP Address</th>
+                            <th>Page</th>
+                            <th>Device/Browser</th>
+                            <th>Visited At</th>
+                        </tr>
+                    </thead>
+                    <tbody id="visitorTable">
+                        <tr>
+                            <td colspan="6" class="empty-state">
+                                <h3>Loading...</h3>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Modal -->
+    <div id="alertModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;justify-content:center;align-items:center;">
+        <div style="background:#171717;border:1px solid #333;border-radius:12px;padding:24px;max-width:400px;width:90%;">
+            <h2 id="alertModalTitle" style="color:#fff;margin-bottom:16px;font-size:1.1rem;">Notice</h2>
+            <p id="alertModalMessage" style="color:#e5e5e5;margin-bottom:20px;white-space:pre-line;line-height:1.6;"></p>
+            <div style="display:flex;justify-content:flex-end;">
+                <button class="btn btn-primary" onclick="closeAlertModal()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div id="confirmModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;justify-content:center;align-items:center;">
+        <div style="background:#171717;border:1px solid #333;border-radius:12px;padding:24px;max-width:420px;width:90%;">
+            <h2 id="confirmModalTitle" style="color:#fff;margin-bottom:16px;font-size:1.1rem;">Confirm</h2>
+            <p id="confirmModalMessage" style="color:#e5e5e5;margin-bottom:20px;white-space:pre-line;line-height:1.6;"></p>
+            <div style="display:flex;justify-content:flex-end;gap:10px;">
+                <button class="btn btn-secondary" onclick="resolveConfirmModal(false)">Cancel</button>
+                <button class="btn btn-danger" id="confirmModalBtn" onclick="resolveConfirmModal(true)">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Auth check - redirect to login if not authenticated
+        (async function checkAuth() {
+            try {
+                const res = await fetch('api/auth.php?action=me');
+                if (!res.ok) { window.location.href = 'login.html'; return; }
+                const data = await res.json();
+                if (!data.authenticated) { window.location.href = 'login.html'; return; }
+            } catch (e) { window.location.href = 'login.html'; }
+        })();
+
+        const API_BASE = 'api/';
+
+        let alertResolve = null;
+        let confirmResolve = null;
+
+        function showAlert(message, title = 'Notice') {
+            return new Promise(resolve => {
+                alertResolve = resolve;
+                document.getElementById('alertModalTitle').textContent = title;
+                document.getElementById('alertModalMessage').textContent = message;
+                document.getElementById('alertModal').style.display = 'flex';
+            });
+        }
+
+        function closeAlertModal() {
+            document.getElementById('alertModal').style.display = 'none';
+            if (alertResolve) { alertResolve(); alertResolve = null; }
+        }
+
+        function showConfirm(message, title = 'Confirm', confirmLabel = 'Confirm') {
+            return new Promise(resolve => {
+                confirmResolve = resolve;
+                document.getElementById('confirmModalTitle').textContent = title;
+                document.getElementById('confirmModalMessage').textContent = message;
+                document.getElementById('confirmModalBtn').textContent = confirmLabel;
+                document.getElementById('confirmModal').style.display = 'flex';
+            });
+        }
+
+        function resolveConfirmModal(value) {
+            document.getElementById('confirmModal').style.display = 'none';
+            if (confirmResolve) { confirmResolve(value); confirmResolve = null; }
+        }
+
+        async function api(endpoint, method = 'GET', data = null) {
+            const options = {
+                method,
+                headers: { 'Content-Type': 'application/json' }
+            };
+            if (data) options.body = JSON.stringify(data);
+            
+            const response = await fetch(API_BASE + endpoint, options);
+            if (response.status === 401) { window.location.href = 'login.html'; return {}; }
+            return response.json();
+        }
+
+        async function loadVisitors() {
+            try {
+                const visitors = await api('visitors.php?limit=200');
+                
+                if (visitors.length === 0) {
+                    document.getElementById('visitorTable').innerHTML = `
+                        <tr>
+                            <td colspan="6" class="empty-state">
+                                <h3>No visitors yet</h3>
+                                <p>Visitor data will appear here when someone accesses the CRM Checklist</p>
+                            </td>
+                        </tr>
+                    `;
+                    document.getElementById('totalVisitors').textContent = '0';
+                    document.getElementById('todayVisitors').textContent = '0';
+                    document.getElementById('uniqueIPs').textContent = '0';
+                    return;
+                }
+
+                // Calculate stats
+                const today = new Date().toISOString().split('T')[0];
+                const todayCount = visitors.filter(v => v.visited_at.startsWith(today)).length;
+                const uniqueIPs = [...new Set(visitors.map(v => v.ip_address))].length;
+
+                document.getElementById('totalVisitors').textContent = visitors.length;
+                document.getElementById('todayVisitors').textContent = todayCount;
+                document.getElementById('uniqueIPs').textContent = uniqueIPs;
+
+                // Render table
+                const rows = visitors.map((v, i) => {
+                    const visitDate = new Date(v.visited_at);
+                    const formattedDate = visitDate.toLocaleString();
+                    const browserInfo = parseUserAgent(v.user_agent);
+                    
+                    return `
+                        <tr>
+                            <td>${visitors.length - i}</td>
+                            <td><strong>${escapeHtml(v.name)}</strong></td>
+                            <td><code>${v.ip_address}</code></td>
+                            <td>${escapeHtml(v.page_visited)}</td>
+                            <td class="user-agent" title="${escapeHtml(v.user_agent)}">${browserInfo}</td>
+                            <td>${formattedDate}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                document.getElementById('visitorTable').innerHTML = rows;
+            } catch (error) {
+                console.error('Error loading visitors:', error);
+                document.getElementById('visitorTable').innerHTML = `
+                    <tr>
+                        <td colspan="6" class="empty-state">
+                            <h3>Error loading visitors</h3>
+                            <p>${error.message}</p>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        function parseUserAgent(ua) {
+            if (!ua) return 'Unknown';
+            
+            // Simple browser/device detection
+            if (ua.includes('Mobile')) {
+                if (ua.includes('iPhone')) return '📱 iPhone';
+                if (ua.includes('Android')) return '📱 Android';
+                return '📱 Mobile';
+            }
+            if (ua.includes('Windows')) return '💻 Windows';
+            if (ua.includes('Mac')) return '💻 Mac';
+            if (ua.includes('Linux')) return '💻 Linux';
+            return '🖥️ Desktop';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
+        }
+
+        async function clearLogs() {
+            if (!(await showConfirm('Are you sure you want to clear all visitor logs? This cannot be undone.', 'Clear Logs', 'Clear All'))) {
+                return;
+            }
+            
+            try {
+                await api('visitors.php?all=1', 'DELETE');
+                loadVisitors();
+            } catch (error) {
+                await showAlert('Error clearing logs: ' + error.message, 'Error');
+            }
+        }
+
+        // Load visitors on page load
+        loadVisitors();
+        
+        // Auto-refresh every 15 seconds
+        setInterval(loadVisitors, 15000);
+    </script>
+</body>
+</html>
