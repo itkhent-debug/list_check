@@ -137,7 +137,7 @@ function getConnection() {
             action VARCHAR(50) NOT NULL,
             target_type VARCHAR(50) DEFAULT '',
             target_id INT DEFAULT NULL,
-            detail TEXT DEFAULT '',
+            detail TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )");
 
