@@ -162,11 +162,7 @@ function setCorsHeaders() {
 // Check if user is authenticated
 function requireAuth() {
     if (empty($_SESSION['user_id'])) {
-        // Auto-login for direct access
-        $_SESSION['user_id'] = 1;
-        $_SESSION['user_email'] = 'paul.valencia@247ga.co';
-        $_SESSION['user_name'] = 'Paul Valencia';
-        return;
+        sendResponse(['error' => 'Not authenticated'], 401);
     }
 }
 

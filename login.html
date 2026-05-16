@@ -414,40 +414,92 @@
     <div class="login-container">
         <div class="login-card">
             <div class="login-header">
-                <p>Redirecting to Dashboard...</p>
+                <div class="brand">
+                    <div class="btn-title">
+                        <span class="original">CRM CHECKLIST</span>
+                        <div class="letters">
+                            <span>C</span><span>R</span><span>M</span>
+                            <span class="space"></span>
+                            <span>C</span><span>H</span><span>E</span><span>C</span><span>K</span><span>L</span><span>I</span><span>S</span><span>T</span>
+                        </div>
+                    </div>
+                </div>
+                <p>Welcome back! Please login to continue.</p>
             </div>
-            <div style="display: flex; justify-content: center; margin: 20px 0;">
-                <div class="loader"></div>
+
+            <div class="error-msg" id="errorMsg">Invalid email or password.</div>
+
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="email">Email / Username</label>
+                    <input type="text" id="email" placeholder="firspointCHL" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="••••••••" required>
+                </div>
+
+                <button type="submit" class="btn-login" id="loginBtn">
+                    <span>Login</span>
+                </button>
+            </form>
+
+            <div class="footer-text">
+                &copy; 2026 CRM Checklist. All rights reserved.
             </div>
         </div>
     </div>
 
-    <style>
-        .loader {
-            border: 4px solid rgba(255, 255, 255, 0.1);
-            border-left-color: #3b82f6;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-    </style>
-
     <script>
-        // Redirect to main app immediately since we have auto-login
+        // Check if already logged in
         (async function checkSession() {
             try {
                 const res = await fetch('api/auth.php?action=me');
                 if (res.ok) {
-                    window.location.href = 'index.html';
+                    const data = await res.json();
+                    if (data.authenticated) {
+                        window.location.href = 'index.html';
+                    }
                 }
-            } catch (e) {
-                console.error('Session check failed:', e);
-            }
+            } catch (e) {}
         })();
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const btn = document.getElementById('loginBtn');
+            const errorMsg = document.getElementById('errorMsg');
+
+            btn.disabled = true;
+            btn.innerHTML = '<span>Logging in...</span>';
+            errorMsg.style.display = 'none';
+
+            try {
+                const res = await fetch('api/auth.php?action=login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    window.location.href = 'index.html';
+                } else {
+                    errorMsg.textContent = data.error || 'Login failed';
+                    errorMsg.style.display = 'block';
+                    btn.disabled = false;
+                    btn.innerHTML = '<span>Login</span>';
+                }
+            } catch (err) {
+                errorMsg.textContent = 'Network error. Try again.';
+                errorMsg.style.display = 'block';
+                btn.disabled = false;
+                btn.innerHTML = '<span>Login</span>';
+            }
+        });
     </script>
 </body>
 </html>

@@ -26,12 +26,19 @@ $conn->query("ALTER TABLE users MODIFY COLUMN password_hash VARCHAR(255) DEFAULT
 $check = $conn->query("SELECT COUNT(*) as cnt FROM users");
 $row = $check->fetch_assoc();
 if ($row['cnt'] == 0) {
-    $defaultPassword = password_hash('247ga2024', PASSWORD_DEFAULT);
+    // Primary user from request
+    $pass1 = password_hash('FPAI26', PASSWORD_DEFAULT);
     $stmt = $conn->prepare("INSERT INTO users (email, name, password_hash) VALUES (?, ?, ?)");
-    
-    $email = 'paul.valencia@247ga.co';
-    $name = 'Paul Valencia';
-    $stmt->bind_param('sss', $email, $name, $defaultPassword);
+    $e1 = 'firspointCHL';
+    $n1 = 'First Point CHL';
+    $stmt->bind_param('sss', $e1, $n1, $pass1);
+    $stmt->execute();
+
+    // Paul Valencia fallback
+    $pass2 = password_hash('247ga2024', PASSWORD_DEFAULT);
+    $e2 = 'paul.valencia@247ga.co';
+    $n2 = 'Paul Valencia';
+    $stmt->bind_param('sss', $e2, $n2, $pass2);
     $stmt->execute();
 }
 
@@ -50,12 +57,6 @@ switch ($action) {
         
         if (empty($email) || empty($password)) {
             sendResponse(['error' => 'Email and password are required'], 400);
-        }
-        
-        // Validate email domain
-        $domain = substr(strrchr($email, '@'), 1);
-        if ($domain !== '247ga.co') {
-            sendResponse(['error' => 'Only @247ga.co email addresses are allowed'], 403);
         }
         
         // Find user
@@ -171,10 +172,7 @@ switch ($action) {
     case 'me':
         // Check current session
         if (empty($_SESSION['user_id'])) {
-            // Auto-login for direct access
-            $_SESSION['user_id'] = 1;
-            $_SESSION['user_email'] = 'paul.valencia@247ga.co';
-            $_SESSION['user_name'] = 'Paul Valencia';
+            sendResponse(['authenticated' => false], 401);
         }
         sendResponse([
             'authenticated' => true,
