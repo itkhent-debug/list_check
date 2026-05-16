@@ -66,6 +66,68 @@ function getConnection() {
     try {
         $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT);
         $conn->set_charset('utf8mb4');
+        
+        // Auto-initialize tables if they don't exist
+        static $initialized = false;
+        if (!$initialized) {
+            $conn->query("CREATE TABLE IF NOT EXISTS batches (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                workflow_name VARCHAR(255) DEFAULT '',
+                assigned_to VARCHAR(255) DEFAULT '',
+                organization VARCHAR(255) DEFAULT '',
+                casino_name VARCHAR(255) DEFAULT '',
+                campaign_dates VARCHAR(255) DEFAULT '',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )");
+            
+            $conn->query("CREATE TABLE IF NOT EXISTS items (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                batch_id INT NOT NULL,
+                name VARCHAR(255) NOT NULL,
+                label VARCHAR(100) NOT NULL,
+                item_date DATE NOT NULL,
+                item_time TIME DEFAULT '10:00:00',
+                checked TINYINT(1) DEFAULT 0,
+                time_ok TINYINT(1) DEFAULT 0,
+                crm_ok TINYINT(1) DEFAULT 0,
+                sort_order INT DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (batch_id) REFERENCES batches(id) ON DELETE CASCADE
+            )");
+            
+            $conn->query("CREATE TABLE IF NOT EXISTS tags (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(50) NOT NULL UNIQUE,
+                color VARCHAR(20) DEFAULT '#3b82f6',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )");
+            
+            $conn->query("CREATE TABLE IF NOT EXISTS batch_tags (
+                batch_id INT NOT NULL,
+                tag_id INT NOT NULL,
+                PRIMARY KEY (batch_id, tag_id),
+                FOREIGN KEY (batch_id) REFERENCES batches(id) ON DELETE CASCADE,
+                FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+            )");
+            
+            $conn->query("CREATE TABLE IF NOT EXISTS users (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                email VARCHAR(255) NOT NULL UNIQUE,
+                name VARCHAR(100) NOT NULL,
+                password_hash VARCHAR(255) DEFAULT NULL,
+                picture VARCHAR(500) DEFAULT NULL,
+                auth_provider VARCHAR(50) DEFAULT 'local',
+                is_active TINYINT(1) DEFAULT 1,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                last_login DATETIME DEFAULT NULL
+            )");
+            
+            $initialized = true;
+        }
+        
         return $conn;
     } catch (Exception $e) {
         header('Content-Type: application/json');
