@@ -4,17 +4,37 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// Global error handler to ensure JSON response
+set_error_handler(function($severity, $message, $file, $line) {
+    if (!(error_reporting() & $severity)) return;
+    header('Content-Type: application/json');
+    http_response_code(500);
+    echo json_encode(['error' => "PHP Error: $message in $file on line $line"]);
+    exit;
+});
+
+set_exception_handler(function($e) {
+    header('Content-Type: application/json');
+    http_response_code(500);
+    echo json_encode(['error' => "PHP Exception: " . $e->getMessage()]);
+    exit;
+});
+
 // Database Configuration
 $dbUrl = getenv('MYSQL_URL') ?: getenv('DATABASE_URL');
 
 if ($dbUrl) {
     $url = parse_url($dbUrl);
-    define('DB_HOST', $url['host']);
-    define('DB_USER', $url['user']);
-    define('DB_PASS', $url['pass']);
-    define('DB_NAME', ltrim($url['path'], '/'));
-    define('DB_PORT', $url['port'] ?: 3306);
-} else {
+    if ($url) {
+        define('DB_HOST', $url['host'] ?? 'localhost');
+        define('DB_USER', $url['user'] ?? 'root');
+        define('DB_PASS', $url['pass'] ?? '');
+        define('DB_NAME', isset($url['path']) ? ltrim($url['path'], '/') : 'railway');
+        define('DB_PORT', $url['port'] ?? 3306);
+    }
+}
+
+if (!defined('DB_HOST')) {
     define('DB_HOST', getenv('MYSQLHOST') ?: 'yamanote.proxy.rlwy.net');
     define('DB_USER', getenv('MYSQLUSER') ?: 'root');
     define('DB_PASS', getenv('MYSQLPASSWORD') ?: 'ahFYtSstCghtlLjIzkwRJJaTHXJifVdY');
@@ -24,17 +44,15 @@ if ($dbUrl) {
 
 // Create connection
 function getConnection() {
+    mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
     try {
         $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT);
-        if ($conn->connect_error) {
-            throw new Exception('Connection failed: ' . $conn->connect_error);
-        }
         $conn->set_charset('utf8mb4');
         return $conn;
     } catch (Exception $e) {
         header('Content-Type: application/json');
         http_response_code(500);
-        die(json_encode(['error' => $e->getMessage()]));
+        die(json_encode(['error' => 'Database connection failed: ' . $e->getMessage()]));
     }
 }
 
