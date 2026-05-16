@@ -15,6 +15,8 @@
             color: #111111;
             min-height: 100vh;
             font-size: 14px;
+            display: flex;
+            flex-direction: column;
         }
 
         /* ── Top bar ── */
@@ -23,7 +25,7 @@
             align-items: center;
             justify-content: space-between;
             padding: 16px 32px;
-            border-bottom: 2px solid #111;
+            border-bottom: 1px solid #e0e0e0;
             position: sticky;
             top: 0;
             background: #fff;
@@ -80,8 +82,60 @@
         }
         .refresh-btn:hover { opacity: 0.8; }
 
-        /* ── Layout ── */
-        .page { padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
+        /* ── Main Layout (Sidebar + Content) ── */
+        .layout {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 65px);
+        }
+
+        /* ── Sidebar ── */
+        .sidebar {
+            width: 250px;
+            border-right: 1px solid #e0e0e0;
+            background: #fafafa;
+            padding: 24px 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .nav-item {
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #555;
+            cursor: pointer;
+            border-left: 3px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .nav-item:hover {
+            background: #f0f0f0;
+            color: #111;
+        }
+
+        .nav-item.active {
+            background: #fff;
+            color: #111;
+            font-weight: 600;
+            border-left-color: #111;
+        }
+
+        /* ── Content Area ── */
+        .content {
+            flex: 1;
+            padding: 28px 32px;
+            overflow-y: auto;
+            background: #ffffff;
+        }
+
+        .tab-pane {
+            display: none;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
 
         /* ── Stats row ── */
         .stats-row {
@@ -92,9 +146,10 @@
         }
 
         .stat-card {
-            border: 1.5px solid #e0e0e0;
-            border-radius: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
             padding: 20px;
+            background: #fafafa;
         }
 
         .stat-label {
@@ -114,12 +169,12 @@
 
         /* ── Section titles ── */
         .section-title {
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.8px;
+            letter-spacing: 0.5px;
             color: #111;
-            margin-bottom: 12px;
+            margin-bottom: 16px;
             padding-bottom: 8px;
             border-bottom: 1.5px solid #111;
         }
@@ -134,10 +189,9 @@
 
         /* ── Activity feed ── */
         .feed {
-            border: 1.5px solid #e0e0e0;
-            border-radius: 10px;
-            max-height: 400px;
-            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #fafafa;
         }
 
         .feed-item {
@@ -145,7 +199,7 @@
             align-items: flex-start;
             gap: 12px;
             padding: 12px 16px;
-            border-bottom: 1px solid #f0f0f0;
+            border-bottom: 1px solid #e0e0e0;
         }
         .feed-item:last-child { border-bottom: none; }
 
@@ -179,13 +233,14 @@
         }
 
         .user-card {
-            border: 1.5px solid #e0e0e0;
-            border-radius: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
             padding: 14px 16px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 12px;
+            background: #fafafa;
         }
 
         .user-card-left { flex: 1; min-width: 0; }
@@ -200,32 +255,32 @@
             text-align: center;
         }
 
-        .user-stat-item { }
         .user-stat-val { font-size: 18px; font-weight: 700; }
         .user-stat-lbl { font-size: 10px; color: #999; text-transform: uppercase; }
 
-        /* ── Batches table ── */
+        /* ── Tables ── */
         .table-wrap {
-            border: 1.5px solid #e0e0e0;
-            border-radius: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
             overflow: hidden;
+            background: #fff;
             margin-bottom: 32px;
         }
 
         table { width: 100%; border-collapse: collapse; }
         th {
-            background: #f8f8f8;
+            background: #fafafa;
             text-align: left;
-            padding: 10px 14px;
+            padding: 12px 16px;
             font-size: 11px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.6px;
             color: #555;
-            border-bottom: 1.5px solid #e0e0e0;
+            border-bottom: 1px solid #e0e0e0;
         }
         td {
-            padding: 10px 14px;
+            padding: 12px 16px;
             border-bottom: 1px solid #f0f0f0;
             font-size: 13px;
         }
@@ -239,13 +294,17 @@
             font-size: 11px;
             font-weight: 600;
         }
-
-        .pill-green { background: #e8f5e9; color: #2e7d32; }
         .pill-blue  { background: #e3f2fd; color: #1565c0; }
 
-        /* ── Scrollbar ── */
-        .feed::-webkit-scrollbar { width: 4px; }
-        .feed::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
+        /* Network Status Colors */
+        .status-200 { color: #2e7d32; font-weight: 600; }
+        .status-4xx { color: #e65100; font-weight: 600; }
+        .status-500 { color: #c62828; font-weight: 600; }
+
+        .method-get { color: #1565c0; font-weight: 600; }
+        .method-post { color: #2e7d32; font-weight: 600; }
+        .method-put { color: #e65100; font-weight: 600; }
+        .method-delete { color: #c62828; font-weight: 600; }
 
         /* ── Loading overlay ── */
         #loadingMsg {
@@ -253,9 +312,9 @@
             padding: 60px;
             color: #555;
             font-size: 15px;
+            width: 100%;
         }
 
-        /* ── Auto-refresh note ── */
         .refresh-note { font-size: 11px; color: #aaa; }
     </style>
 </head>
@@ -276,81 +335,86 @@
     </div>
 </div>
 
-<div class="page">
-    <div id="loadingMsg">Loading data...</div>
-    <div id="mainContent" style="display:none;">
+<div class="layout">
+    <div class="sidebar">
+        <div class="nav-item active" onclick="switchTab('dashboard', this)">Dashboard Overview</div>
+        <div class="nav-item" onclick="switchTab('activity', this)">User Activity Log</div>
+        <div class="nav-item" onclick="switchTab('network', this)">Network API Monitor</div>
+    </div>
 
-        <!-- Stats -->
-        <div class="stats-row">
-            <div class="stat-card">
-                <div class="stat-label">Total Batches</div>
-                <div class="stat-value" id="sBatches">—</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Total Items</div>
-                <div class="stat-value" id="sItems">—</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Items Checked</div>
-                <div class="stat-value" id="sChecked">—</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Total Users</div>
-                <div class="stat-value" id="sUsers">—</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Batches Deleted</div>
-                <div class="stat-value" id="sDeleted">—</div>
-            </div>
-        </div>
+    <div class="content">
+        <div id="loadingMsg">Loading data...</div>
+        
+        <div id="mainContent" style="display:none;">
+            
+            <!-- Tab 1: Dashboard Overview -->
+            <div id="tab-dashboard" class="tab-pane active">
+                <div class="section-title">Overview Stats</div>
+                <div class="stats-row">
+                    <div class="stat-card"><div class="stat-label">Total Batches</div><div class="stat-value" id="sBatches">—</div></div>
+                    <div class="stat-card"><div class="stat-label">Total Items</div><div class="stat-value" id="sItems">—</div></div>
+                    <div class="stat-card"><div class="stat-label">Items Checked</div><div class="stat-value" id="sChecked">—</div></div>
+                    <div class="stat-card"><div class="stat-label">Total Users</div><div class="stat-value" id="sUsers">—</div></div>
+                    <div class="stat-card"><div class="stat-label">Batches Deleted</div><div class="stat-value" id="sDeleted">—</div></div>
+                </div>
 
-        <!-- Activity Feed + User Cards -->
-        <div class="two-col">
-            <!-- Activity Feed -->
-            <div>
-                <div class="section-title">Live Activity Log</div>
+                <div class="section-title">User Summary</div>
+                <div class="user-cards" id="userCards" style="margin-bottom: 32px;">
+                    <div class="empty">No users found.</div>
+                </div>
+
+                <div class="section-title">All Batches</div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>#</th><th>Batch Name</th><th>Items</th><th>Checked</th><th>Progress</th><th>Created</th><th>Updated</th></tr></thead>
+                        <tbody id="batchTable"><tr><td colspan="7" class="empty">Loading...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tab 2: User Activity Log -->
+            <div id="tab-activity" class="tab-pane">
+                <div class="section-title">Recent User Actions</div>
                 <div class="feed" id="activityFeed">
                     <div class="empty">No activity yet.</div>
                 </div>
             </div>
 
-            <!-- User Summary -->
-            <div>
-                <div class="section-title">User Summary</div>
-                <div class="user-cards" id="userCards">
-                    <div class="empty">No users found.</div>
+            <!-- Tab 3: Network API Monitor -->
+            <div id="tab-network" class="tab-pane">
+                <div class="section-title">Live API Requests</div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Time (GMT+8)</th>
+                                <th>Method</th>
+                                <th>Path</th>
+                                <th>HTTP Status</th>
+                                <th>Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody id="apiTable">
+                            <tr><td colspan="5" class="empty">No network requests logged yet.</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
-        </div>
 
-        <!-- Batches Table -->
-        <div class="section-title">All Batches in Database</div>
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Batch Name</th>
-                        <th>Total Items</th>
-                        <th>Checked</th>
-                        <th>Progress</th>
-                        <th>Created</th>
-                        <th>Last Updated</th>
-                    </tr>
-                </thead>
-                <tbody id="batchTable">
-                    <tr><td colspan="7" style="text-align:center;color:#aaa;padding:20px;">Loading...</td></tr>
-                </tbody>
-            </table>
         </div>
-
     </div>
 </div>
 
 <script>
     const KEY = 'MONITOR2026';
 
-    // Clock
+    function switchTab(tabId, el) {
+        document.querySelectorAll('.tab-pane').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.getElementById('tab-' + tabId).classList.add('active');
+        el.classList.add('active');
+    }
+
     function updateClock() {
         const now = new Date();
         document.getElementById('clockDisplay').textContent =
@@ -360,7 +424,6 @@
     setInterval(updateClock, 1000);
     updateClock();
 
-    // Action label helpers
     function badgeClass(action) {
         if (action === 'CREATE_BATCH') return 'badge-create';
         if (action === 'DELETE_BATCH' || action === 'DELETE_ITEM') return 'badge-delete';
@@ -370,38 +433,32 @@
     }
 
     function actionLabel(action) {
-        const map = {
-            CREATE_BATCH: 'CREATED',
-            UPDATE_BATCH: 'UPDATED',
-            DELETE_BATCH: 'DELETED',
-            CHECK_ITEM:   'CHECKED',
-            UNCHECK_ITEM: 'UNCHECKED',
-            DELETE_ITEM:  'REMOVED',
-        };
+        const map = { CREATE_BATCH: 'CREATED', UPDATE_BATCH: 'UPDATED', DELETE_BATCH: 'DELETED', CHECK_ITEM: 'CHECKED', UNCHECK_ITEM: 'UNCHECKED', DELETE_ITEM: 'REMOVED' };
         return map[action] || action;
     }
 
     function actionDetail(log) {
-        const map = {
-            CREATE_BATCH: `Created batch "${log.detail}"`,
-            UPDATE_BATCH: `Updated batch "${log.detail}"`,
-            DELETE_BATCH: `Deleted ${log.detail}`,
-            CHECK_ITEM:   `Marked item done (${log.detail})`,
-            UNCHECK_ITEM: `Unchecked item (${log.detail})`,
-            DELETE_ITEM:  `Removed item (${log.detail})`,
-        };
+        const map = { CREATE_BATCH: `Created batch "${log.detail}"`, UPDATE_BATCH: `Updated batch "${log.detail}"`, DELETE_BATCH: `Deleted ${log.detail}`, CHECK_ITEM: `Marked item done (${log.detail})`, UNCHECK_ITEM: `Unchecked item (${log.detail})`, DELETE_ITEM: `Removed item (${log.detail})` };
         return map[log.action] || log.detail;
     }
 
     function formatTime(ts) {
         if (!ts) return '—';
         const d = new Date(ts);
-        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
-               d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    function getStatusClass(status) {
+        if (status === 200 || status === 201) return 'status-200';
+        if (status >= 400 && status < 500) return 'status-4xx';
+        return 'status-500';
+    }
+
+    function getMethodClass(method) {
+        return 'method-' + (method || 'get').toLowerCase();
     }
 
     async function loadData() {
-        // Update status badge
         const badge = document.getElementById('statusBadge');
         const statusText = document.getElementById('statusText');
         badge.className = 'status-badge loading';
@@ -412,7 +469,6 @@
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
 
-            // Status badge
             badge.className = 'status-badge ok';
             statusText.textContent = `200 OK — ${data.timestamp}`;
 
@@ -440,10 +496,9 @@
                 `).join('');
             }
 
-            // User Cards (merge users + activity)
+            // User Cards
             const actMap = {};
             data.user_activity.forEach(a => { actMap[a.user_email] = a; });
-
             const cards = document.getElementById('userCards');
             if (data.users.length === 0) {
                 cards.innerHTML = '<div class="empty">No users.</div>';
@@ -458,22 +513,10 @@
                                 <div class="user-last">Last action: ${a.last_action ? formatTime(a.last_action) : 'No activity yet'}</div>
                             </div>
                             <div class="user-stats">
-                                <div class="user-stat-item">
-                                    <div class="user-stat-val">${a.total_actions || 0}</div>
-                                    <div class="user-stat-lbl">Actions</div>
-                                </div>
-                                <div class="user-stat-item">
-                                    <div class="user-stat-val">${a.created || 0}</div>
-                                    <div class="user-stat-lbl">Created</div>
-                                </div>
-                                <div class="user-stat-item">
-                                    <div class="user-stat-val">${a.checked || 0}</div>
-                                    <div class="user-stat-lbl">Checked</div>
-                                </div>
-                                <div class="user-stat-item">
-                                    <div class="user-stat-val">${a.deleted || 0}</div>
-                                    <div class="user-stat-lbl">Deleted</div>
-                                </div>
+                                <div class="user-stat-item"><div class="user-stat-val">${a.total_actions || 0}</div><div class="user-stat-lbl">Actions</div></div>
+                                <div class="user-stat-item"><div class="user-stat-val">${a.created || 0}</div><div class="user-stat-lbl">Created</div></div>
+                                <div class="user-stat-item"><div class="user-stat-val">${a.checked || 0}</div><div class="user-stat-lbl">Checked</div></div>
+                                <div class="user-stat-item"><div class="user-stat-val">${a.deleted || 0}</div><div class="user-stat-lbl">Deleted</div></div>
                             </div>
                         </div>
                     `;
@@ -483,7 +526,7 @@
             // Batches Table
             const tbody = document.getElementById('batchTable');
             if (data.batches.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:20px;">No batches yet.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="empty">No batches yet.</td></tr>';
             } else {
                 tbody.innerHTML = data.batches.map((b, i) => {
                     const pct = b.item_count > 0 ? Math.round((b.checked_count / b.item_count) * 100) : 0;
@@ -496,7 +539,7 @@
                             <td>
                                 <div style="display:flex;align-items:center;gap:8px;">
                                     <div style="flex:1;height:6px;background:#eee;border-radius:4px;overflow:hidden;">
-                                        <div style="height:100%;width:${pct}%;background:#111;border-radius:4px;"></div>
+                                        <div style="height:100%;width:${pct}%;background:#111;"></div>
                                     </div>
                                     <span style="font-size:11px;color:#555;width:28px;">${pct}%</span>
                                 </div>
@@ -508,20 +551,35 @@
                 }).join('');
             }
 
+            // API Logs Table
+            const apiTbody = document.getElementById('apiTable');
+            if (data.api_logs && data.api_logs.length > 0) {
+                apiTbody.innerHTML = data.api_logs.map(log => `
+                    <tr>
+                        <td>${formatTime(log.created_at)}</td>
+                        <td class="${getMethodClass(log.method)}">${log.method}</td>
+                        <td style="font-family:monospace;color:#444;">${log.path}</td>
+                        <td class="${getStatusClass(log.http_status)}">${log.http_status}</td>
+                        <td style="color:#555;">${log.duration_ms}ms</td>
+                    </tr>
+                `).join('');
+            } else {
+                apiTbody.innerHTML = '<tr><td colspan="5" class="empty">No network requests logged yet.</td></tr>';
+            }
+
             document.getElementById('loadingMsg').style.display = 'none';
             document.getElementById('mainContent').style.display = 'block';
 
         } catch (err) {
             badge.className = 'status-badge err';
             statusText.textContent = `ERROR — ${err.message}`;
-            document.getElementById('loadingMsg').textContent = 'Failed to load data. ' + err.message;
+            if (document.getElementById('loadingMsg').style.display !== 'none') {
+                document.getElementById('loadingMsg').textContent = 'Failed to load data. ' + err.message;
+            }
         }
     }
 
-    // Load on start
     loadData();
-
-    // Auto-refresh every 30 seconds
     setInterval(loadData, 30000);
 </script>
 

@@ -48,6 +48,13 @@ $logsResult = $conn->query("SELECT id, user_name, user_email, action, target_typ
 $logs = [];
 while ($row = $logsResult->fetch_assoc()) $logs[] = $row;
 
+// Recent 100 API logs
+$apiLogsResult = $conn->query("SELECT method, path, http_status, duration_ms, created_at FROM api_logs ORDER BY created_at DESC LIMIT 100");
+$apiLogs = [];
+if ($apiLogsResult) {
+    while ($row = $apiLogsResult->fetch_assoc()) $apiLogs[] = $row;
+}
+
 sendResponse([
     'status'    => 'ok',
     'timestamp' => date('Y-m-d H:i:s'),
@@ -62,5 +69,6 @@ sendResponse([
     'users'         => $users,
     'user_activity' => $userActivity,
     'logs'          => $logs,
+    'api_logs'      => $apiLogs,
 ]);
 ?>

@@ -1,4 +1,5 @@
 <?php
+define('APP_START_TIME', microtime(true));
 // Global error handler - MUST BE AT THE VERY TOP
 ini_set('display_errors', 0);
 error_reporting(E_ALL);
@@ -141,6 +142,15 @@ function getConnection() {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )");
 
+        $conn->query("CREATE TABLE IF NOT EXISTS api_logs (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            method VARCHAR(10) NOT NULL,
+            path VARCHAR(255) NOT NULL,
+            http_status INT NOT NULL,
+            duration_ms INT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )");
+
         return $conn;
     } catch (Exception $e) {
         header('Content-Type: application/json');
@@ -205,4 +215,25 @@ function sendResponse($data, $code = 200) {
 function getJsonInput() {
     return json_decode(file_get_contents('php://input'), true) ?? [];
 }
+
+// Log all API requests on shutdown
+register_shutdown_function(function() {
+    $uri = $_SERVER['REQUEST_URI'] ?? '';
+    // Only log if it's an API request (and not the monitor itself polling constantly, to save DB space)
+    if (strpos($uri, 'api/') !== false && strpos($uri, 'monitor.php') === false) {
+        $duration = round((microtime(true) - APP_START_TIME) * 1000);
+        $status = http_response_code() ?: 200;
+        $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+        $path = parse_url($uri, PHP_URL_PATH);
+        
+        try {
+            $conn = getConnection();
+            $stmt = $conn->prepare("INSERT INTO api_logs (method, path, http_status, duration_ms) VALUES (?, ?, ?, ?)");
+            $stmt->bind_param('ssii', $method, $path, $status, $duration);
+            $stmt->execute();
+        } catch (Exception $e) {
+            // Ignore logging errors
+        }
+    }
+});
 ?>
