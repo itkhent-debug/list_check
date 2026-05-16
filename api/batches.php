@@ -1,7 +1,7 @@
 <?php
 require_once 'config.php';
 setCorsHeaders();
-requireAuth();
+$user = requireAuth();
 
 $conn = getConnection();
 $method = $_SERVER['REQUEST_METHOD'];
@@ -80,25 +80,7 @@ switch ($method) {
         
         if ($stmt->execute()) {
             $batchId = $conn->insert_id;
-            
-            // Insert items if provided
-            if (!empty($data['items'])) {
-                $itemStmt = $conn->prepare("INSERT INTO items (batch_id, name, label, item_date, item_time, checked, time_ok, crm_ok) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-                
-                foreach ($data['items'] as $item) {
-                    $itemName = $item['name'];
-                    $label = $item['label'];
-                    $date = $item['date'];
-                    $time = $item['time'] ?? '10:00';
-                    $checked = $item['checked'] ? 1 : 0;
-                    $timeOk = $item['timeOk'] ? 1 : 0;
-                    $crmOk = $item['crmOk'] ? 1 : 0;
-                    
-                    $itemStmt->bind_param("issssiii", $batchId, $itemName, $label, $date, $time, $checked, $timeOk, $crmOk);
-                    $itemStmt->execute();
-                }
-            }
-            
+            logActivity($conn, $user, 'CREATE_BATCH', 'batch', $batchId, $name);
             sendResponse(['id' => $batchId, 'message' => 'Batch created']);
         } else {
             sendResponse(['error' => 'Failed to create batch'], 500);
@@ -139,7 +121,7 @@ switch ($method) {
                 $itemStmt->execute();
             }
         }
-        
+        logActivity($conn, $user, 'UPDATE_BATCH', 'batch', $id, $name);
         sendResponse(['message' => 'Batch updated']);
         break;
 
@@ -155,6 +137,7 @@ switch ($method) {
         $stmt->bind_param("i", $id);
         
         if ($stmt->execute()) {
+            logActivity($conn, $user, 'DELETE_BATCH', 'batch', $id, 'Batch ID '.$id);
             sendResponse(['message' => 'Batch deleted']);
         } else {
             sendResponse(['error' => 'Failed to delete batch'], 500);

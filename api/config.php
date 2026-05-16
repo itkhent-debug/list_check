@@ -22,18 +22,17 @@ set_exception_handler(function($e) {
 
 register_shutdown_function(function() {
     $error = error_get_last();
-    if ($error && ($error['type'] === E_ERROR || $error['type'] === E_PARSE || $error['type'] === E_COMPILE_ERROR)) {
+    if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_COMPILE_ERROR])) {
         ob_clean();
         header('Content-Type: application/json');
         http_response_code(500);
-        echo json_encode(['error' => "PHP Fatal Error: " . $error['message'] . " in " . $error['file'] . " on line " . $error['line']]);
+        echo json_encode(['error' => "PHP Fatal: " . $error['message']]);
         exit;
     }
 });
 
 ob_start();
 
-// Start session (best effort - Railway may not persist files)
 if (session_status() === PHP_SESSION_NONE) {
     @session_start();
 }
@@ -50,7 +49,6 @@ if ($dbUrl) {
         define('DB_PORT', $url['port'] ?? 3306);
     }
 }
-
 if (!defined('DB_HOST')) {
     define('DB_HOST', getenv('MYSQLHOST') ?: 'yamanote.proxy.rlwy.net');
     define('DB_USER', getenv('MYSQLUSER') ?: 'root');
@@ -59,7 +57,6 @@ if (!defined('DB_HOST')) {
     define('DB_PORT', getenv('MYSQLPORT') ?: 58498);
 }
 
-// Create connection
 function getConnection() {
     static $conn = null;
     if ($conn !== null) return $conn;
@@ -69,7 +66,6 @@ function getConnection() {
         $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME, (int)DB_PORT);
         $conn->set_charset('utf8mb4');
 
-        // Auto-initialize all tables
         $conn->query("CREATE TABLE IF NOT EXISTS batches (
             id INT AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(255) NOT NULL,
@@ -125,7 +121,6 @@ function getConnection() {
             last_login DATETIME DEFAULT NULL
         )");
 
-        // DB-backed auth tokens (fixes Railway ephemeral session issue)
         $conn->query("CREATE TABLE IF NOT EXISTS auth_tokens (
             token VARCHAR(64) NOT NULL PRIMARY KEY,
             user_id INT NOT NULL,
@@ -133,6 +128,17 @@ function getConnection() {
             user_name VARCHAR(100) NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             expires_at TIMESTAMP NOT NULL
+        )");
+
+        $conn->query("CREATE TABLE IF NOT EXISTS activity_logs (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_email VARCHAR(255) NOT NULL DEFAULT '',
+            user_name VARCHAR(100) NOT NULL DEFAULT '',
+            action VARCHAR(50) NOT NULL,
+            target_type VARCHAR(50) DEFAULT '',
+            target_id INT DEFAULT NULL,
+            detail TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )");
 
         return $conn;
@@ -143,19 +149,18 @@ function getConnection() {
     }
 }
 
-// Get current user from DB token (reads cookie or X-Auth-Token header)
+// Get current user from DB token
 function getAuthUser($conn) {
     $token = $_COOKIE['crm_token'] ?? ($_SERVER['HTTP_X_AUTH_TOKEN'] ?? '');
     if (empty($token)) return null;
-
     $safe = $conn->real_escape_string($token);
-    $result = $conn->query("SELECT user_id, user_email, user_name FROM auth_tokens 
+    $result = $conn->query("SELECT user_id, user_email, user_name FROM auth_tokens
                             WHERE token = '$safe' AND expires_at > NOW() LIMIT 1");
     if (!$result || $result->num_rows === 0) return null;
     return $result->fetch_assoc();
 }
 
-// Require authenticated user - sends 401 if not logged in
+// Require auth or send 401
 function requireAuth() {
     $conn = getConnection();
     $user = getAuthUser($conn);
@@ -166,6 +171,18 @@ function requireAuth() {
     $_SESSION['user_email'] = $user['user_email'];
     $_SESSION['user_name']  = $user['user_name'];
     return $user;
+}
+
+// Log user activity
+function logActivity($conn, $user, $action, $targetType = '', $targetId = null, $detail = '') {
+    $email  = $conn->real_escape_string($user['user_email'] ?? '');
+    $name   = $conn->real_escape_string($user['user_name'] ?? '');
+    $act    = $conn->real_escape_string($action);
+    $ttype  = $conn->real_escape_string($targetType);
+    $det    = $conn->real_escape_string($detail);
+    $tid    = ($targetId !== null) ? (int)$targetId : 'NULL';
+    $conn->query("INSERT INTO activity_logs (user_email, user_name, action, target_type, target_id, detail)
+                  VALUES ('$email','$name','$act','$ttype',$tid,'$det')");
 }
 
 // CORS headers

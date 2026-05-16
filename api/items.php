@@ -1,7 +1,7 @@
 <?php
 require_once 'config.php';
 setCorsHeaders();
-requireAuth();
+$user = requireAuth();
 
 $conn = getConnection();
 $method = $_SERVER['REQUEST_METHOD'];
@@ -120,6 +120,11 @@ switch ($method) {
         $stmt->bind_param($types, ...$params);
         
         if ($stmt->execute()) {
+            // Log check/uncheck actions
+            if (isset($data['checked'])) {
+                $action = $data['checked'] ? 'CHECK_ITEM' : 'UNCHECK_ITEM';
+                logActivity($conn, $user, $action, 'item', $id, 'Item ID '.$id);
+            }
             sendResponse(['message' => 'Item updated']);
         } else {
             sendResponse(['error' => 'Failed to update item'], 500);
@@ -138,6 +143,7 @@ switch ($method) {
         $stmt->bind_param("i", $id);
         
         if ($stmt->execute()) {
+            logActivity($conn, $user, 'DELETE_ITEM', 'item', $id, 'Item ID '.$id);
             sendResponse(['message' => 'Item deleted']);
         } else {
             sendResponse(['error' => 'Failed to delete item'], 500);
