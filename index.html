@@ -2918,7 +2918,8 @@
                     return JSON.parse(text);
                 } catch (jsonErr) {
                     console.error('Non-JSON response:', text);
-                    return { error: 'Invalid server response. Check console for details.' };
+                    const snippet = text.substring(0, 100).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    return { error: 'Invalid server response: ' + snippet };
                 }
             } catch (err) {
                 console.error('Network or API Error:', err);

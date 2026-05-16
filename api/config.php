@@ -1,12 +1,11 @@
 <?php
-// Start session for authentication
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+// Global error handler to ensure JSON response - MUST BE AT THE VERY TOP
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
 
-// Global error handler to ensure JSON response
 set_error_handler(function($severity, $message, $file, $line) {
     if (!(error_reporting() & $severity)) return;
+    ob_clean();
     header('Content-Type: application/json');
     http_response_code(500);
     echo json_encode(['error' => "PHP Error: $message in $file on line $line"]);
@@ -14,11 +13,30 @@ set_error_handler(function($severity, $message, $file, $line) {
 });
 
 set_exception_handler(function($e) {
+    ob_clean();
     header('Content-Type: application/json');
     http_response_code(500);
     echo json_encode(['error' => "PHP Exception: " . $e->getMessage()]);
     exit;
 });
+
+register_shutdown_function(function() {
+    $error = error_get_last();
+    if ($error && ($error['type'] === E_ERROR || $error['type'] === E_PARSE || $error['type'] === E_COMPILE_ERROR)) {
+        ob_clean();
+        header('Content-Type: application/json');
+        http_response_code(500);
+        echo json_encode(['error' => "PHP Fatal Error: " . $error['message'] . " in " . $error['file'] . " on line " . $error['line']]);
+        exit;
+    }
+});
+
+ob_start();
+
+// Start session for authentication
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 // Database Configuration
 $dbUrl = getenv('MYSQL_URL') ?: getenv('DATABASE_URL');
