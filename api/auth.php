@@ -29,6 +29,26 @@ if ($checkPaul->num_rows == 0) {
     $stmt->execute();
 }
 
+// Seed paulvalencia@ga.co if missing
+$chk3 = $conn->query("SELECT id FROM users WHERE email = 'paulvalencia@ga.co' LIMIT 1");
+if ($chk3->num_rows == 0) {
+    $p3 = password_hash('FPAI26', PASSWORD_DEFAULT);
+    $stmt = $conn->prepare("INSERT INTO users (email, name, password_hash) VALUES (?, ?, ?)");
+    $e3 = 'paulvalencia@ga.co'; $n3 = 'Paul Valencia';
+    $stmt->bind_param('sss', $e3, $n3, $p3);
+    $stmt->execute();
+}
+
+// Seed jbdelrosario@ga.co if missing
+$chk4 = $conn->query("SELECT id FROM users WHERE email = 'jbdelrosario@ga.co' LIMIT 1");
+if ($chk4->num_rows == 0) {
+    $p4 = password_hash('FPA126', PASSWORD_DEFAULT);
+    $stmt = $conn->prepare("INSERT INTO users (email, name, password_hash) VALUES (?, ?, ?)");
+    $e4 = 'jbdelrosario@ga.co'; $n4 = 'JB Del Rosario';
+    $stmt->bind_param('sss', $e4, $n4, $p4);
+    $stmt->execute();
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
 
