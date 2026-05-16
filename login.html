@@ -414,131 +414,40 @@
     <div class="login-container">
         <div class="login-card">
             <div class="login-header">
-                <p>Sign in with your Google account</p>
+                <p>Redirecting to Dashboard...</p>
             </div>
-
-            <div id="errorMsg" class="error-msg"></div>
-
-            <div class="google-signin-container">
-                <button class="google-btn" id="customGoogleBtn">
-                    <svg class="google-icon" viewBox="0 0 48 48">
-                        <path class="red" fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                        <path class="green" fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                        <path class="yellow" fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                        <path class="blue" fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-                    </svg>
-                    <span class="text">Sign in with Google</span>
-                </button>
+            <div style="display: flex; justify-content: center; margin: 20px 0;">
+                <div class="loader"></div>
             </div>
-
-            <div class="domain-notice">
-                <span>Only</span>
-                <span class="domain-badge">@247ga.co</span>
-                <span>Google accounts allowed</span>
-            </div>
-
-            <p class="footer-text">Contact admin if you need an account</p>
         </div>
     </div>
 
+    <style>
+        .loader {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-left-color: #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+
     <script>
-        // If already logged in, redirect to main app
+        // Redirect to main app immediately since we have auto-login
         (async function checkSession() {
             try {
                 const res = await fetch('api/auth.php?action=me');
                 if (res.ok) {
-                    const data = await res.json();
-                    if (data.authenticated) {
-                        window.location.href = 'index.html';
-                    }
+                    window.location.href = 'index.html';
                 }
-                // 401 is expected when not logged in - don't log error
             } catch (e) {
-                // Network error - ignore on login page
-            }
-            
-            // Check for error in URL params
-            const urlParams = new URLSearchParams(window.location.search);
-            const error = urlParams.get('error');
-            if (error) {
-                const errorMsg = document.getElementById('errorMsg');
-                const errorMessages = {
-                    'no_credential': 'Authentication failed. Please try again.',
-                    'invalid_token': 'Invalid authentication token.',
-                    'invalid_domain': 'Only @247ga.co accounts are allowed.',
-                    'account_deactivated': 'Your account has been deactivated.',
-                    'registration_failed': 'Failed to create account. Please try again.'
-                };
-                errorMsg.textContent = errorMessages[error] || 'Login failed. Please try again.';
-                errorMsg.style.display = 'block';
-                // Clean URL
-                window.history.replaceState({}, document.title, window.location.pathname);
+                console.error('Session check failed:', e);
             }
         })();
-
-        // Custom Google button click handler - direct OAuth redirect
-        document.getElementById('customGoogleBtn').addEventListener('click', function() {
-            const clientId = '326291537602-3hkauop1u7go6qik6tntlsivq8frgb5j.apps.googleusercontent.com';
-            const redirectUri = encodeURIComponent('https://efferent-abrupt-rosella.ngrok-free.dev/CRM-CHECKLIST/api/google_callback.php');
-            const scope = encodeURIComponent('openid email profile');
-            const nonce = Math.random().toString(36).substring(2);
-            
-            const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=id_token&response_mode=form_post&scope=${scope}&nonce=${nonce}&prompt=select_account`;
-            
-            window.location.href = authUrl;
-        });
-
-        // Decode JWT token
-        function decodeJWT(token) {
-            const base64Url = token.split('.')[1];
-            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-            const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => 
-                '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
-            ).join(''));
-            return JSON.parse(jsonPayload);
-        }
-
-        async function handleGoogleSignIn(response) {
-            const errorMsg = document.getElementById('errorMsg');
-            errorMsg.style.display = 'none';
-            
-            try {
-                // Decode the JWT to get user info
-                const payload = decodeJWT(response.credential);
-                const email = payload.email.toLowerCase();
-                
-                // Verify domain
-                if (!email.endsWith('@247ga.co')) {
-                    errorMsg.textContent = 'Only @247ga.co accounts are allowed';
-                    errorMsg.style.display = 'block';
-                    return;
-                }
-                
-                // Send to backend for verification and session creation
-                const res = await fetch('api/auth.php?action=google', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        credential: response.credential,
-                        email: email,
-                        name: payload.name,
-                        picture: payload.picture
-                    })
-                });
-                
-                const data = await res.json();
-                
-                if (res.ok && data.user) {
-                    window.location.href = 'index.html';
-                } else {
-                    errorMsg.textContent = data.error || 'Login failed';
-                    errorMsg.style.display = 'block';
-                }
-            } catch (err) {
-                errorMsg.textContent = 'Connection error. Please try again.';
-                errorMsg.style.display = 'block';
-            }
-        }
     </script>
 </body>
 </html>
