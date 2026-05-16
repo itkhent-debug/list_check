@@ -2176,28 +2176,31 @@
     </div>
 
     <script>
-        // Auth check - disabled redirect for direct access
+    <script>
+        // Auth check
         (async function checkAuth() {
             try {
                 const res = await fetch('api/auth.php?action=me');
                 if (res.ok) {
-                    const text = await res.text();
-                    try {
-                        const data = JSON.parse(text);
-                        if (data.authenticated) {
-                            document.getElementById('userDisplay').textContent = data.user.name;
-                            
-                            // Show Users button only for admin
-                            const adminEmails = ['paul.valencia@247ga.co'];
-                            if (adminEmails.includes(data.user.email.toLowerCase())) {
-                                document.getElementById('usersBtn').style.display = '';
-                            }
+                    const data = await res.json();
+                    if (data.authenticated) {
+                        document.getElementById('userDisplay').textContent = data.user.name;
+                        
+                        // Show Users button only for admin
+                        const adminEmails = ['paul.valencia@247ga.co', 'firspointCHL'];
+                        if (adminEmails.includes(data.user.email.toLowerCase())) {
+                            document.getElementById('usersBtn').style.display = '';
                         }
-                    } catch (e) {
-                        console.error('Auth JSON parse error:', text);
+                    } else {
+                        window.location.href = 'login.html';
                     }
+                } else {
+                    window.location.href = 'login.html';
                 }
-            } catch (e) { console.error('Auth check error:', e); }
+            } catch (e) { 
+                console.error('Auth check error:', e); 
+                window.location.href = 'login.html';
+            }
         })();
 
         async function logoutUser() {
