@@ -49,6 +49,16 @@ if ($chk4->num_rows == 0) {
     $stmt->execute();
 }
 
+// Seed khentagustin@ga.co if missing
+$chk5 = $conn->query("SELECT id FROM users WHERE email = 'khentagustin@ga.co' LIMIT 1");
+if ($chk5->num_rows == 0) {
+    $p5 = password_hash('FPAI26', PASSWORD_DEFAULT);
+    $stmt = $conn->prepare("INSERT INTO users (email, name, password_hash) VALUES (?, ?, ?)");
+    $e5 = 'khentagustin@ga.co'; $n5 = 'Khent Agustin';
+    $stmt->bind_param('sss', $e5, $n5, $p5);
+    $stmt->execute();
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
 
