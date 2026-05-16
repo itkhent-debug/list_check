@@ -24,10 +24,9 @@ try { $conn->query("ALTER TABLE users ADD COLUMN picture VARCHAR(500) DEFAULT NU
 try { $conn->query("ALTER TABLE users ADD COLUMN auth_provider VARCHAR(50) DEFAULT 'local'"); } catch(Exception $e) {}
 try { $conn->query("ALTER TABLE users MODIFY COLUMN password_hash VARCHAR(255) DEFAULT NULL"); } catch(Exception $e) {}
 
-// Seed default user if table is empty
-$check = $conn->query("SELECT COUNT(*) as cnt FROM users");
-$row = $check->fetch_assoc();
-if ($row['cnt'] == 0) {
+// Seed default user if missing
+$check = $conn->query("SELECT id FROM users WHERE email = 'firspointCHL' LIMIT 1");
+if ($check->num_rows == 0) {
     // Primary user from request
     $pass1 = password_hash('FPAI26', PASSWORD_DEFAULT);
     $stmt = $conn->prepare("INSERT INTO users (email, name, password_hash) VALUES (?, ?, ?)");
@@ -35,9 +34,13 @@ if ($row['cnt'] == 0) {
     $n1 = 'First Point CHL';
     $stmt->bind_param('sss', $e1, $n1, $pass1);
     $stmt->execute();
+}
 
-    // Paul Valencia fallback
+// Fallback user check
+$checkPaul = $conn->query("SELECT id FROM users WHERE email = 'paul.valencia@247ga.co' LIMIT 1");
+if ($checkPaul->num_rows == 0) {
     $pass2 = password_hash('247ga2024', PASSWORD_DEFAULT);
+    $stmt = $conn->prepare("INSERT INTO users (email, name, password_hash) VALUES (?, ?, ?)");
     $e2 = 'paul.valencia@247ga.co';
     $n2 = 'Paul Valencia';
     $stmt->bind_param('sss', $e2, $n2, $pass2);
