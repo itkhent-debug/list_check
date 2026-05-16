@@ -4,23 +4,49 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Database Configuration - Railway compatible
-define('DB_HOST', getenv('MYSQLHOST') ?: 'yamanote.proxy.rlwy.net');
-define('DB_USER', getenv('MYSQLUSER') ?: 'root');
-define('DB_PASS', getenv('MYSQLPASSWORD') ?: 'ahFYtSstCghtlLjIzkwRJJaTHXJifVdY');
-define('DB_NAME', getenv('MYSQLDATABASE') ?: 'railway');
-define('DB_PORT', getenv('MYSQLPORT') ?: 58498);
+// Database Configuration
+$dbUrl = getenv('MYSQL_URL') ?: getenv('DATABASE_URL');
+
+if ($dbUrl) {
+    $url = parse_url($dbUrl);
+    define('DB_HOST', $url['host']);
+    define('DB_USER', $url['user']);
+    define('DB_PASS', $url['pass']);
+    define('DB_NAME', ltrim($url['path'], '/'));
+    define('DB_PORT', $url['port'] ?: 3306);
+} else {
+    define('DB_HOST', getenv('MYSQLHOST') ?: 'yamanote.proxy.rlwy.net');
+    define('DB_USER', getenv('MYSQLUSER') ?: 'root');
+    define('DB_PASS', getenv('MYSQLPASSWORD') ?: 'ahFYtSstCghtlLjIzkwRJJaTHXJifVdY');
+    define('DB_NAME', getenv('MYSQLDATABASE') ?: 'railway');
+    define('DB_PORT', getenv('MYSQLPORT') ?: 58498);
+}
 
 // Create connection
 function getConnection() {
-    $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT);
-    
-    if ($conn->connect_error) {
-        die(json_encode(['error' => 'Connection failed: ' . $conn->connect_error]));
+    try {
+        $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT);
+        if ($conn->connect_error) {
+            throw new Exception('Connection failed: ' . $conn->connect_error);
+        }
+        $conn->set_charset('utf8mb4');
+        return $conn;
+    } catch (Exception $e) {
+        header('Content-Type: application/json');
+        http_response_code(500);
+        die(json_encode(['error' => $e->getMessage()]));
     }
-    
-    $conn->set_charset('utf8mb4');
-    return $conn;
+}
+
+// Safe query helper
+function executeQuery($conn, $sql) {
+    $result = $conn->query($sql);
+    if ($result === false) {
+        header('Content-Type: application/json');
+        http_response_code(500);
+        die(json_encode(['error' => 'Database query failed: ' . $conn->error, 'sql' => $sql]));
+    }
+    return $result;
 }
 
 // CORS headers for API

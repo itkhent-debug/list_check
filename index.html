@@ -2181,15 +2181,20 @@
             try {
                 const res = await fetch('api/auth.php?action=me');
                 if (res.ok) {
-                    const data = await res.json();
-                    if (data.authenticated) {
-                        document.getElementById('userDisplay').textContent = data.user.name;
-                        
-                        // Show Users button only for admin
-                        const adminEmails = ['paul.valencia@247ga.co'];
-                        if (adminEmails.includes(data.user.email.toLowerCase())) {
-                            document.getElementById('usersBtn').style.display = '';
+                    const text = await res.text();
+                    try {
+                        const data = JSON.parse(text);
+                        if (data.authenticated) {
+                            document.getElementById('userDisplay').textContent = data.user.name;
+                            
+                            // Show Users button only for admin
+                            const adminEmails = ['paul.valencia@247ga.co'];
+                            if (adminEmails.includes(data.user.email.toLowerCase())) {
+                                document.getElementById('usersBtn').style.display = '';
+                            }
                         }
+                    } catch (e) {
+                        console.error('Auth JSON parse error:', text);
                     }
                 }
             } catch (e) { console.error('Auth check error:', e); }
@@ -2209,32 +2214,32 @@
         }
 
         async function loadUserList() {
-            try {
-                const res = await fetch('api/auth.php?action=users');
-                const users = await res.json();
-                const tbody = document.getElementById('userListBody');
-                tbody.innerHTML = '';
-
-                users.forEach(u => {
-                    // Hide the currently logged-in admin from the list
-                    if (u.name === document.getElementById('userDisplay').textContent) return;
-
-                    const lastLogin = u.last_login ? new Date(u.last_login).toLocaleDateString('en-US', {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'}) : 'Never';
-                    const tr = document.createElement('tr');
-                    tr.style.borderBottom = '1px solid #222';
-                    tr.innerHTML = `
-                        <td style="padding:10px;color:#fff;font-size:0.9rem;">${u.name}</td>
-                        <td style="padding:10px;color:#a3a3a3;font-size:0.85rem;">${u.email}</td>
-                        <td style="padding:10px;color:#737373;font-size:0.8rem;">${lastLogin}</td>
-                        <td style="padding:10px;text-align:right;">
-                            <button class="btn btn-danger" style="padding:8px 16px;font-size:0.8rem;" onclick="removeUser(${u.id}, '${u.name}')">Remove</button>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-            } catch (e) {
-                console.error('Failed to load users', e);
+            const users = await api('auth.php?action=users');
+            if (users.error) {
+                console.error('Failed to load users', users.error);
+                return;
             }
+            
+            const tbody = document.getElementById('userListBody');
+            tbody.innerHTML = '';
+
+            users.forEach(u => {
+                // Hide the currently logged-in admin from the list
+                if (u.name === document.getElementById('userDisplay').textContent) return;
+
+                const lastLogin = u.last_login ? new Date(u.last_login).toLocaleDateString('en-US', {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'}) : 'Never';
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = '1px solid #222';
+                tr.innerHTML = `
+                    <td style="padding:10px;color:#fff;font-size:0.9rem;">${u.name}</td>
+                    <td style="padding:10px;color:#a3a3a3;font-size:0.85rem;">${u.email}</td>
+                    <td style="padding:10px;color:#737373;font-size:0.8rem;">${lastLogin}</td>
+                    <td style="padding:10px;text-align:right;">
+                        <button class="btn btn-danger" style="padding:8px 16px;font-size:0.8rem;" onclick="removeUser(${u.id}, '${u.name}')">Remove</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
         }
 
         async function addNewUser() {
@@ -2257,25 +2262,16 @@
                 return;
             }
 
-            try {
-                const res = await fetch('api/auth.php?action=users', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, email, password })
-                });
-                const data = await res.json();
+            const data = await api('auth.php?action=users', 'POST', { name, email, password });
 
-                if (res.ok) {
-                    document.getElementById('newUserName').value = '';
-                    document.getElementById('newUserEmail').value = '';
-                    document.getElementById('newUserPassword').value = '';
-                    showToast('User added successfully!');
-                    loadUserList();
-                } else {
-                    await showAlert(data.error || 'Failed to add user.', 'Error');
-                }
-            } catch (e) {
-                await showAlert('Connection error.', 'Error');
+            if (!data.error) {
+                document.getElementById('newUserName').value = '';
+                document.getElementById('newUserEmail').value = '';
+                document.getElementById('newUserPassword').value = '';
+                showToast('User added successfully!');
+                loadUserList();
+            } else {
+                await showAlert(data.error || 'Failed to add user.', 'Error');
             }
         }
 
@@ -2283,18 +2279,13 @@
             const ok = await showConfirm(`Remove "${name}" from the system?\nThey will no longer be able to log in.`, 'Remove User', 'Remove');
             if (!ok) return;
 
-            try {
-                const res = await fetch(`api/auth.php?action=users&id=${id}`, { method: 'DELETE' });
-                const data = await res.json();
+            const data = await api(`auth.php?action=users&id=${id}`, 'DELETE');
 
-                if (res.ok) {
-                    showToast('User removed');
-                    loadUserList();
-                } else {
-                    await showAlert(data.error || 'Failed to remove user.', 'Error');
-                }
-            } catch (e) {
-                await showAlert('Connection error.', 'Error');
+            if (!data.error) {
+                showToast('User removed');
+                loadUserList();
+            } else {
+                await showAlert(data.error || 'Failed to remove user.', 'Error');
             }
         }
 
@@ -2872,25 +2863,19 @@
             }
             
             try {
-                // Step 1: Get a one-time nonce from server
-                const nonceRes = await fetch(`${API_URL}/verify_passcode.php`);
-                const challenge = await nonceRes.json();
-                if (!challenge.nonce) {
-                    showToast('Failed to get challenge. Try again.');
-                    return;
-                }
-                
-                // Step 2: hash = sha256( sha256(passcode) + nonce )
-                const passcodeHash = await sha256(passcode);
-                const hash = await sha256(passcodeHash + challenge.nonce);
-                
-                // Step 3: Send the combined hash (different every time)
-                const verifyRes = await fetch(`${API_URL}/verify_passcode.php`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ hash })
-                });
-                const result = await verifyRes.json();
+            // Step 1: Get a one-time nonce from server
+            const challenge = await api('verify_passcode.php');
+            if (challenge.error || !challenge.nonce) {
+                showToast('Failed to get challenge. Try again.');
+                return;
+            }
+            
+            // Step 2: hash = sha256( sha256(passcode) + nonce )
+            const passcodeHash = await sha256(passcode);
+            const hash = await sha256(passcodeHash + challenge.nonce);
+            
+            // Step 3: Send the combined hash (different every time)
+            const result = await api('verify_passcode.php', 'POST', { hash });
                 
                 document.getElementById('passcodeModal').style.display = 'none';
                 
@@ -2927,9 +2912,16 @@
             try {
                 const res = await fetch(`${API_URL}/${endpoint}`, options);
                 if (res.status === 401) { console.warn('Not authenticated'); return {}; }
-                return await res.json();
+                
+                const text = await res.text();
+                try {
+                    return JSON.parse(text);
+                } catch (jsonErr) {
+                    console.error('Non-JSON response:', text);
+                    return { error: 'Invalid server response. Check console for details.' };
+                }
             } catch (err) {
-                console.error('API Error:', err);
+                console.error('Network or API Error:', err);
                 return { error: err.message };
             }
         }
