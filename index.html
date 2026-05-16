@@ -9,6 +9,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
+    <script>
+        // Initialize theme as early as possible to prevent flickering
+        (function initTheme() {
+            const savedTheme = localStorage.getItem('crm-theme');
+            if (savedTheme) {
+                document.documentElement.setAttribute('data-theme', savedTheme);
+            }
+        })();
+    </script>
     <style>
         :root {
             /* Dark mode (default) */
@@ -1776,7 +1785,7 @@
                 <h3>Batch Management</h3>
                 <div class="form-group" style="margin-bottom:12px;">
                     <label title="Name your batch for easy identification">Batch Name</label>
-                    <input type="text" id="batchName" placeholder="e.g., JACKSON ACTIVATION" title="Enter a descriptive name for this batch" oninput="render()" style="width:100%;">
+                    <input type="text" id="batchName" placeholder="e.g., JACKSON ACTIVATION" title="Enter a descriptive name for this batch" onchange="render()" style="width:100%;">
                 </div>
                 <div style="display:flex;gap:8px;margin-bottom:12px;">
                     <button class="btn btn-success" id="saveBtn" onclick="saveBatch()" title="Save current items" style="flex:1;" onmouseenter="showAddRowArrow()" onmouseleave="hideAddRowArrow()">Save</button>
@@ -2167,21 +2176,23 @@
     </div>
 
     <script>
-        // Auth check - redirect to login if not authenticated
+        // Auth check - disabled redirect for direct access
         (async function checkAuth() {
             try {
                 const res = await fetch('api/auth.php?action=me');
-                if (!res.ok) { window.location.href = 'login.html'; return; }
-                const data = await res.json();
-                if (!data.authenticated) { window.location.href = 'login.html'; return; }
-                document.getElementById('userDisplay').textContent = data.user.name;
-                
-                // Show Users button only for admin
-                const adminEmails = ['paul.valencia@247ga.co'];
-                if (adminEmails.includes(data.user.email.toLowerCase())) {
-                    document.getElementById('usersBtn').style.display = '';
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.authenticated) {
+                        document.getElementById('userDisplay').textContent = data.user.name;
+                        
+                        // Show Users button only for admin
+                        const adminEmails = ['paul.valencia@247ga.co'];
+                        if (adminEmails.includes(data.user.email.toLowerCase())) {
+                            document.getElementById('usersBtn').style.display = '';
+                        }
+                    }
                 }
-            } catch (e) { window.location.href = 'login.html'; }
+            } catch (e) { console.error('Auth check error:', e); }
         })();
 
         async function logoutUser() {
@@ -2915,7 +2926,7 @@
             
             try {
                 const res = await fetch(`${API_URL}/${endpoint}`, options);
-                if (res.status === 401) { window.location.href = 'login.html'; return {}; }
+                if (res.status === 401) { console.warn('Not authenticated'); return {}; }
                 return await res.json();
             } catch (err) {
                 console.error('API Error:', err);
