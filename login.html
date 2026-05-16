@@ -454,8 +454,12 @@
     <script>
         // Check if already logged in
         (async function checkSession() {
+            const token = localStorage.getItem('crm_token');
+            if (!token) return;
             try {
-                const res = await fetch('api/auth.php?action=me');
+                const res = await fetch('api/auth.php?action=me', {
+                    headers: { 'X-Auth-Token': token }
+                });
                 if (res.ok) {
                     const data = await res.json();
                     if (data.authenticated) {
@@ -486,6 +490,7 @@
                 const data = await res.json();
 
                 if (res.ok) {
+                    if (data.token) localStorage.setItem('crm_token', data.token);
                     window.location.href = 'index.html';
                 } else {
                     errorMsg.textContent = data.error || 'Login failed';

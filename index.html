@@ -2176,35 +2176,40 @@
     </div>
 
     <script>
-    <script>
         // Auth check
         (async function checkAuth() {
             try {
-                const res = await fetch('api/auth.php?action=me');
+                const res = await fetch('api/auth.php?action=me', {
+                    headers: { 'X-Auth-Token': localStorage.getItem('crm_token') || '' }
+                });
                 if (res.ok) {
                     const data = await res.json();
                     if (data.authenticated) {
                         document.getElementById('userDisplay').textContent = data.user.name;
-                        
-                        // Show Users button only for admin
-                        const adminEmails = ['paul.valencia@247ga.co', 'firspointCHL'];
-                        if (adminEmails.includes(data.user.email.toLowerCase())) {
+                        const adminEmails = ['paul.valencia@247ga.co', 'firspointchl'];
+                        if (adminEmails.includes((data.user.email || '').toLowerCase())) {
                             document.getElementById('usersBtn').style.display = '';
                         }
                     } else {
+                        localStorage.removeItem('crm_token');
                         window.location.href = 'login.html';
                     }
                 } else {
+                    localStorage.removeItem('crm_token');
                     window.location.href = 'login.html';
                 }
-            } catch (e) { 
-                console.error('Auth check error:', e); 
+            } catch (e) {
+                console.error('Auth check error:', e);
                 window.location.href = 'login.html';
             }
         })();
 
         async function logoutUser() {
-            await fetch('api/auth.php?action=logout', { method: 'POST' });
+            await fetch('api/auth.php?action=logout', {
+                method: 'POST',
+                headers: { 'X-Auth-Token': localStorage.getItem('crm_token') || '' }
+            });
+            localStorage.removeItem('crm_token');
             window.location.href = 'login.html';
         }
 
@@ -2908,20 +2913,27 @@
         async function api(endpoint, method = 'GET', data = null) {
             const options = {
                 method,
-                headers: { 'Content-Type': 'application/json' }
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Auth-Token': localStorage.getItem('crm_token') || ''
+                }
             };
             if (data) options.body = JSON.stringify(data);
-            
+
             try {
                 const res = await fetch(`${API_URL}/${endpoint}`, options);
-                if (res.status === 401) { console.warn('Not authenticated'); return {}; }
-                
+                if (res.status === 401) {
+                    localStorage.removeItem('crm_token');
+                    window.location.href = 'login.html';
+                    return {};
+                }
+
                 const text = await res.text();
                 try {
                     return JSON.parse(text);
                 } catch (jsonErr) {
                     console.error('Non-JSON response:', text);
-                    const snippet = text.substring(0, 100).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    const snippet = text.substring(0, 200).replace(/</g, '&lt;').replace(/>/g, '&gt;');
                     return { error: 'Invalid server response: ' + snippet };
                 }
             } catch (err) {
