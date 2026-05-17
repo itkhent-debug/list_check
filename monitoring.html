@@ -991,6 +991,69 @@
         }
     }
 
+    function formatDatePdf(dateStr) {
+        if (!dateStr) return '—';
+        const parts = dateStr.split('-');
+        if (parts.length !== 3) return dateStr;
+        const d = new Date(parts[0], parts[1] - 1, parts[2]);
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function formatTimePdf(timeStr) {
+        if (!timeStr) return '—';
+        const parts = timeStr.split(':');
+        if (parts.length < 2) return timeStr;
+        let h = parseInt(parts[0]);
+        const m = parts[1];
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        h = h % 12;
+        h = h ? h : 12;
+        return `${h}:${m} ${ampm}`;
+    }
+
+    function calculateGap(prevDate, prevTime, currDate, currTime) {
+        if (!prevDate || !currDate) return '—';
+        const d1 = new Date(`${prevDate}T${prevTime || '00:00:00'}`);
+        const d2 = new Date(`${currDate}T${currTime || '00:00:00'}`);
+        const diffMs = d2 - d1;
+        if (diffMs < 0 || isNaN(diffMs)) return '—';
+        if (diffMs === 0) return '0hrs';
+        
+        const diffMins = Math.floor(diffMs / 60000);
+        if (diffMins < 60) return `${diffMins}mins`;
+        
+        const diffHrs = Math.floor(diffMins / 60);
+        const remMins = diffMins % 60;
+        
+        let res = `${diffHrs}hrs`;
+        if (remMins > 0) res += ` ${remMins}mins`;
+        
+        if (diffHrs >= 24) {
+            const days = Math.floor(diffHrs / 24);
+            if (diffHrs % 24 === 0 && remMins === 0) {
+                return `${diffHrs}hrs / ${days}d`;
+            }
+        }
+        return res;
+    }
+
+    function calculateTotalGap(firstItem, lastItem) {
+        if (!firstItem || !lastItem) return '—';
+        if (!firstItem.date || !lastItem.date) return '—';
+        const d1 = new Date(`${firstItem.date}T${firstItem.time || '00:00:00'}`);
+        const d2 = new Date(`${lastItem.date}T${lastItem.time || '00:00:00'}`);
+        const diffMs = d2 - d1;
+        if (diffMs < 0 || isNaN(diffMs)) return '—';
+        
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHrs = Math.floor(diffMins / 60);
+        const remMins = diffMins % 60;
+        
+        let res = `${diffHrs}hrs`;
+        if (remMins > 0) res += ` ${remMins}mins`;
+        return res;
+    }
+
     async function downloadBatchPDF(batchId, batchName, itemCount, checkedCount, pct) {
         try {
             // Fetch items for this batch
@@ -1007,87 +1070,100 @@
             const pageW = doc.internal.pageSize.getWidth();
             const margin = 14;
 
-            // Header bar
-            doc.setFillColor(17, 17, 17);
-            doc.rect(0, 0, pageW, 22, 'F');
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(13);
-            doc.setFont('helvetica', 'bold');
-            doc.text('monitoring.co  —  Batch Sequence Report', margin, 14);
-
-            // Batch title
-            doc.setTextColor(17, 17, 17);
-            doc.setFontSize(16);
-            doc.setFont('helvetica', 'bold');
-            doc.text(batchName, margin, 36);
-
-            // Meta row
-            doc.setFontSize(9);
+            // Header text
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(11);
             doc.setFont('helvetica', 'normal');
-            doc.setTextColor(100, 100, 100);
-            const genDate = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-            doc.text(`Generated: ${genDate}     Total Items: ${itemCount}     Checked: ${checkedCount}     Progress: ${pct}%`, margin, 44);
-
-            // Progress bar
-            doc.setFillColor(238, 238, 238);
-            doc.roundedRect(margin, 48, pageW - margin * 2, 4, 2, 2, 'F');
-            if (pct > 0) {
-                const barColor = pct === 100 ? [46, 125, 50] : [17, 17, 17];
-                doc.setFillColor(...barColor);
-                doc.roundedRect(margin, 48, (pageW - margin * 2) * (pct / 100), 4, 2, 2, 'F');
-            }
-            doc.setFontSize(8);
-            doc.setTextColor(pct === 100 ? 46 : 85, pct === 100 ? 125 : 85, pct === 100 ? 50 : 85);
-            doc.setFont('helvetica', 'bold');
-            doc.text(`${pct}% Complete`, pageW - margin, 51, { align: 'right' });
-
-            // Divider
-            doc.setDrawColor(200, 200, 200);
-            doc.line(margin, 56, pageW - margin, 56);
+            
+            doc.text('Assigned To: test', margin, 20);
+            doc.text('Organization: test', margin, 26);
+            doc.text('Casino: test', margin, 32);
+            doc.text('Campaign Dates: test', margin, 38);
+            const genDate = new Date().toLocaleDateString('en-US');
+            doc.text(`Generated: ${genDate}`, margin, 44);
 
             // Items table
             if (items.length > 0) {
-                const tableRows = items.map((item, idx) => [
-                    idx + 1,
-                    item.name || '',
-                    item.label || '',
-                    item.date ? item.date.split('T')[0] : '—',
-                    item.time ? item.time.substring(0, 5) : '—',
-                    item.checked ? 'OK' : '—',
-                    item.timeOk ? 'OK' : '—',
-                    item.crmOk ? 'OK' : '—',
-                ]);
+                let prevDate = null;
+                let prevTime = null;
+
+                const tableRows = items.map((item, idx) => {
+                    const gap = calculateGap(prevDate, prevTime, item.date, item.time);
+                    prevDate = item.date;
+                    prevTime = item.time;
+                    
+                    return [
+                        item.checked ? 'Yes' : '—',
+                        item.name || '',
+                        item.label || '',
+                        formatDatePdf(item.date),
+                        formatTimePdf(item.time),
+                        idx === 0 ? '0hrs' : gap,
+                        item.timeOk ? 'Yes' : '—',
+                        item.crmOk ? 'Yes' : '—',
+                    ];
+                });
 
                 doc.autoTable({
-                    startY: 60,
-                    head: [['#', 'Item Name', 'Label', 'Date', 'Time', 'Done', 'Time OK', 'CRM OK']],
+                    startY: 55,
+                    head: [['Done', 'Subitem', 'Label', 'Date', 'Time', 'Gap', 'Time OK', 'CRM OK']],
                     body: tableRows,
+                    theme: 'plain',
                     margin: { left: margin, right: margin },
-                    styles: { fontSize: 8, cellPadding: 3, font: 'helvetica', textColor: [30, 30, 30] },
-                    headStyles: { fillColor: [17, 17, 17], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
-                    alternateRowStyles: { fillColor: [248, 248, 248] },
-                    columnStyles: {
-                        0: { cellWidth: 8, halign: 'center' },
-                        1: { cellWidth: 50 },
-                        2: { cellWidth: 32 },
-                        3: { cellWidth: 20 },
-                        4: { cellWidth: 14 },
-                        5: { cellWidth: 14, halign: 'center' },
-                        6: { cellWidth: 16, halign: 'center' },
-                        7: { cellWidth: 16, halign: 'center' },
+                    styles: { 
+                        fontSize: 9, 
+                        cellPadding: 3, 
+                        font: 'helvetica', 
+                        textColor: [0, 0, 0],
+                        lineWidth: 0.5,
+                        lineColor: [0, 0, 0],
+                        halign: 'center',
+                        valign: 'middle'
                     },
-                    didParseCell: function(data) {
-                        // Green OK text instead of unsupported unicode checkmark
-                        if ([5, 6, 7].includes(data.column.index) && data.cell.raw === 'OK') {
-                            data.cell.styles.textColor = [46, 125, 50];
-                            data.cell.styles.fontStyle = 'bold';
-                        }
+                    headStyles: { 
+                        fillColor: [255, 255, 255], 
+                        textColor: [0, 0, 0], 
+                        fontStyle: 'bold'
+                    },
+                    columnStyles: {
+                        1: { cellWidth: 50 },
+                        2: { cellWidth: 26 },
+                        3: { cellWidth: 24 },
+                        4: { cellWidth: 20 },
+                        5: { cellWidth: 20 },
+                        0: { cellWidth: 14 },
+                        6: { cellWidth: 14 },
+                        7: { cellWidth: 14 },
                     }
                 });
+
+                const finalY = doc.lastAutoTable.finalY + 10;
+                
+                // Workflow Gap Summary Box
+                doc.setDrawColor(0, 0, 0);
+                doc.setLineWidth(0.5);
+                doc.rect(margin, finalY, pageW - margin * 2, 35);
+                
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'bold');
+                doc.text('Workflow Gap Summary', pageW / 2, finalY + 7, { align: 'center' });
+                
+                doc.setFont('helvetica', 'normal');
+                doc.text(`Workflow: ${batchName}`, margin + 5, finalY + 16);
+                
+                const totalGap = items.length > 1 ? calculateTotalGap(items[0], items[items.length - 1]) : '0hrs';
+                doc.text(`Total Gap: ${totalGap}`, margin + 5, finalY + 23);
+                
+                const firstItemName = items.length > 0 ? items[0].name : '—';
+                const lastItemName = items.length > 0 ? items[items.length - 1].name : '—';
+                
+                doc.text(`From: ${firstItemName}`, margin + 5, finalY + 30);
+                doc.text(`To: ${lastItemName}`, pageW / 2 + 10, finalY + 30);
+
             } else {
                 doc.setFontSize(10);
                 doc.setTextColor(150, 150, 150);
-                doc.text('No items found for this batch.', margin, 70);
+                doc.text('No items found for this batch.', margin, 60);
             }
 
             // Footer
