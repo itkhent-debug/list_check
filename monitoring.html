@@ -271,6 +271,36 @@
             gap: 10px;
         }
 
+        /* ── Modal Styles ── */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6);
+            display: none; align-items: center; justify-content: center;
+            z-index: 9999;
+        }
+        .modal {
+            background: #fff; width: 100%; max-width: 440px; border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: slideDown 0.3s ease;
+        }
+        @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .modal-header {
+            padding: 20px 24px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-header h3 { margin: 0; font-size: 18px; font-weight: 600; color: #111; }
+        .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #999; line-height: 1; }
+        .modal-close:hover { color: #111; }
+        .modal-body { padding: 24px; }
+        .form-group { margin-bottom: 18px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 8px; }
+        .form-group input, .form-group select {
+            width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; color: #111; box-sizing: border-box; transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group select:focus { border-color: #111; outline: none; }
+        .export-btn {
+            width: 100%; background: #111; color: #fff; border: none; border-radius: 4px; padding: 14px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 10px; transition: background 0.2s;
+        }
+        .export-btn:hover { background: #333; }
+
         .user-card {
             border: 1px solid #e0e0e0;
             border-radius: 8px;
@@ -590,6 +620,46 @@
     </div>
 </div>
 
+<!-- Export Details Modal -->
+<div id="exportModal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Export Details</h3>
+            <button class="modal-close" onclick="closeExportModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Workflow Name</label>
+                <input type="text" id="exWorkflowName" placeholder="e.g., JACKSON ACTIVATION SEQUENCE">
+            </div>
+            <div class="form-group">
+                <label>Include Workflow Gap (Optional)</label>
+                <select id="exIncludeGap">
+                    <option value="Yes" selected>Yes</option>
+                    <option value="None">-- None --</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Assigned To</label>
+                <input type="text" id="exAssignedTo" placeholder="e.g., John Paul V. Valencia">
+            </div>
+            <div class="form-group">
+                <label>Organization</label>
+                <input type="text" id="exOrganization" placeholder="e.g., Tech Dev Team">
+            </div>
+            <div class="form-group">
+                <label>Casino Name</label>
+                <input type="text" id="exCasinoName" placeholder="e.g., JACKSON-0426CT April Continuity">
+            </div>
+            <div class="form-group">
+                <label>Campaign Dates</label>
+                <input type="text" id="exCampaignDates" placeholder="e.g., March 28 - April 24 2026">
+            </div>
+            <button class="export-btn" id="btnExportPdf" onclick="triggerPdfExport()">Export PDF</button>
+        </div>
+    </div>
+</div>
+
 <script>
     const KEY = 'MONITOR2026';
     let allBatchesData = [];
@@ -668,7 +738,7 @@
             let dlButtonHTML = '<span style="font-size:11px;color:#999;">—</span>';
             if (isComplete) {
                 dlButtonHTML = `
-                        <button class="dl-icon-only complete" title="100% Complete — Download PDF" onclick="downloadBatchPDF(${b.id}, '${b.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}', ${b.item_count}, ${b.checked_count}, ${pct})">
+                        <button class="dl-icon-only complete" title="100% Complete — Download PDF" onclick="openExportModal(${b.id}, '${b.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}', ${b.item_count}, ${b.checked_count}, ${pct})">
                             <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 12 15.75 15 12.75M12 15.75V8.25M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                             </svg>
@@ -1054,7 +1124,43 @@
         return res;
     }
 
-    async function downloadBatchPDF(batchId, batchName, itemCount, checkedCount, pct) {
+    let currentExportParams = null;
+
+    function openExportModal(batchId, batchName, itemCount, checkedCount, pct) {
+        currentExportParams = { batchId, batchName, itemCount, checkedCount, pct };
+        document.getElementById('exWorkflowName').value = batchName;
+        document.getElementById('exIncludeGap').value = 'Yes';
+        document.getElementById('exAssignedTo').value = '';
+        document.getElementById('exOrganization').value = '';
+        document.getElementById('exCasinoName').value = '';
+        document.getElementById('exCampaignDates').value = '';
+        document.getElementById('exportModal').style.display = 'flex';
+    }
+
+    function closeExportModal() {
+        document.getElementById('exportModal').style.display = 'none';
+        currentExportParams = null;
+    }
+
+    function triggerPdfExport() {
+        if (!currentExportParams) return;
+        
+        const params = {
+            ...currentExportParams,
+            assignedTo: document.getElementById('exAssignedTo').value || '—',
+            organization: document.getElementById('exOrganization').value || '—',
+            casinoName: document.getElementById('exCasinoName').value || '—',
+            campaignDates: document.getElementById('exCampaignDates').value || '—',
+            includeGap: document.getElementById('exIncludeGap').value === 'Yes',
+            workflowName: document.getElementById('exWorkflowName').value || currentExportParams.batchName
+        };
+        
+        closeExportModal();
+        downloadBatchPDF(params);
+    }
+
+    async function downloadBatchPDF(params) {
+        const { batchId, workflowName, itemCount, checkedCount, pct, assignedTo, organization, casinoName, campaignDates, includeGap } = params;
         try {
             // Fetch items for this batch
             const res = await fetch(`api/items.php?batch_id=${batchId}&key=${KEY}`);
@@ -1075,10 +1181,10 @@
             doc.setFontSize(11);
             doc.setFont('helvetica', 'normal');
             
-            doc.text('Assigned To: test', margin, 20);
-            doc.text('Organization: test', margin, 26);
-            doc.text('Casino: test', margin, 32);
-            doc.text('Campaign Dates: test', margin, 38);
+            doc.text(`Assigned To: ${assignedTo}`, margin, 20);
+            doc.text(`Organization: ${organization}`, margin, 26);
+            doc.text(`Casino: ${casinoName}`, margin, 32);
+            doc.text(`Campaign Dates: ${campaignDates}`, margin, 38);
             const genDate = new Date().toLocaleDateString('en-US');
             doc.text(`Generated: ${genDate}`, margin, 44);
 
@@ -1087,26 +1193,69 @@
                 let prevDate = null;
                 let prevTime = null;
 
+                let headRows = [];
+                if (includeGap) {
+                    headRows = [['Done', 'Subitem', 'Label', 'Date', 'Time', 'Gap', 'Time OK', 'CRM OK']];
+                } else {
+                    headRows = [['Done', 'Subitem', 'Label', 'Date', 'Time', 'Time OK', 'CRM OK']];
+                }
+
                 const tableRows = items.map((item, idx) => {
                     const gap = calculateGap(prevDate, prevTime, item.date, item.time);
                     prevDate = item.date;
                     prevTime = item.time;
                     
-                    return [
-                        item.checked ? 'Yes' : '—',
-                        item.name || '',
-                        item.label || '',
-                        formatDatePdf(item.date),
-                        formatTimePdf(item.time),
-                        idx === 0 ? '0hrs' : gap,
-                        item.timeOk ? 'Yes' : '—',
-                        item.crmOk ? 'Yes' : '—',
-                    ];
+                    if (includeGap) {
+                        return [
+                            item.checked ? 'Yes' : '—',
+                            item.name || '',
+                            item.label || '',
+                            formatDatePdf(item.date),
+                            formatTimePdf(item.time),
+                            idx === 0 ? '0hrs' : gap,
+                            item.timeOk ? 'Yes' : '—',
+                            item.crmOk ? 'Yes' : '—',
+                        ];
+                    } else {
+                        return [
+                            item.checked ? 'Yes' : '—',
+                            item.name || '',
+                            item.label || '',
+                            formatDatePdf(item.date),
+                            formatTimePdf(item.time),
+                            item.timeOk ? 'Yes' : '—',
+                            item.crmOk ? 'Yes' : '—',
+                        ];
+                    }
                 });
+
+                let colStyles = {};
+                if (includeGap) {
+                    colStyles = {
+                        1: { cellWidth: 50 },
+                        2: { cellWidth: 26 },
+                        3: { cellWidth: 24 },
+                        4: { cellWidth: 20 },
+                        5: { cellWidth: 20 },
+                        0: { cellWidth: 14 },
+                        6: { cellWidth: 14 },
+                        7: { cellWidth: 14 },
+                    };
+                } else {
+                    colStyles = {
+                        1: { cellWidth: 55 },
+                        2: { cellWidth: 31 },
+                        3: { cellWidth: 28 },
+                        4: { cellWidth: 26 },
+                        0: { cellWidth: 14 },
+                        5: { cellWidth: 14 },
+                        6: { cellWidth: 14 },
+                    };
+                }
 
                 doc.autoTable({
                     startY: 55,
-                    head: [['Done', 'Subitem', 'Label', 'Date', 'Time', 'Gap', 'Time OK', 'CRM OK']],
+                    head: headRows,
                     body: tableRows,
                     theme: 'plain',
                     margin: { left: margin, right: margin },
@@ -1125,40 +1274,33 @@
                         textColor: [0, 0, 0], 
                         fontStyle: 'bold'
                     },
-                    columnStyles: {
-                        1: { cellWidth: 50 },
-                        2: { cellWidth: 26 },
-                        3: { cellWidth: 24 },
-                        4: { cellWidth: 20 },
-                        5: { cellWidth: 20 },
-                        0: { cellWidth: 14 },
-                        6: { cellWidth: 14 },
-                        7: { cellWidth: 14 },
-                    }
+                    columnStyles: colStyles
                 });
 
-                const finalY = doc.lastAutoTable.finalY + 10;
-                
-                // Workflow Gap Summary Box
-                doc.setDrawColor(0, 0, 0);
-                doc.setLineWidth(0.5);
-                doc.rect(margin, finalY, pageW - margin * 2, 35);
-                
-                doc.setFontSize(10);
-                doc.setFont('helvetica', 'bold');
-                doc.text('Workflow Gap Summary', pageW / 2, finalY + 7, { align: 'center' });
-                
-                doc.setFont('helvetica', 'normal');
-                doc.text(`Workflow: ${batchName}`, margin + 5, finalY + 16);
-                
-                const totalGap = items.length > 1 ? calculateTotalGap(items[0], items[items.length - 1]) : '0hrs';
-                doc.text(`Total Gap: ${totalGap}`, margin + 5, finalY + 23);
-                
-                const firstItemName = items.length > 0 ? items[0].name : '—';
-                const lastItemName = items.length > 0 ? items[items.length - 1].name : '—';
-                
-                doc.text(`From: ${firstItemName}`, margin + 5, finalY + 30);
-                doc.text(`To: ${lastItemName}`, pageW / 2 + 10, finalY + 30);
+                if (includeGap) {
+                    const finalY = doc.lastAutoTable.finalY + 10;
+                    
+                    // Workflow Gap Summary Box
+                    doc.setDrawColor(0, 0, 0);
+                    doc.setLineWidth(0.5);
+                    doc.rect(margin, finalY, pageW - margin * 2, 35);
+                    
+                    doc.setFontSize(10);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('Workflow Gap Summary', pageW / 2, finalY + 7, { align: 'center' });
+                    
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(`Workflow: ${workflowName}`, margin + 5, finalY + 16);
+                    
+                    const totalGap = items.length > 1 ? calculateTotalGap(items[0], items[items.length - 1]) : '0hrs';
+                    doc.text(`Total Gap: ${totalGap}`, margin + 5, finalY + 23);
+                    
+                    const firstItemName = items.length > 0 ? items[0].name : '—';
+                    const lastItemName = items.length > 0 ? items[items.length - 1].name : '—';
+                    
+                    doc.text(`From: ${firstItemName}`, margin + 5, finalY + 30);
+                    doc.text(`To: ${lastItemName}`, pageW / 2 + 10, finalY + 30);
+                }
 
             } else {
                 doc.setFontSize(10);
@@ -1177,7 +1319,7 @@
             }
 
             // Save
-            const filename = `${batchName.replace(/[^a-zA-Z0-9 _-]/g, '').trim().replace(/ /g, '_')}_sequence.pdf`;
+            const filename = `${workflowName.replace(/[^a-zA-Z0-9 _-]/g, '').trim().replace(/ /g, '_')}_sequence.pdf`;
             doc.save(filename);
 
         } catch (err) {
