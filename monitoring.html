@@ -440,6 +440,7 @@
 <div class="layout">
     <div class="sidebar">
         <div class="nav-item active" onclick="switchTab('dashboard', this)">Dashboard Overview</div>
+        <div class="nav-item" onclick="switchTab('batches', this)">All Batches</div>
         <div class="nav-item" onclick="switchTab('activity', this)">User Activity Log</div>
         <div class="nav-item" onclick="switchTab('network', this)">Network API Monitor</div>
     </div>
@@ -465,6 +466,40 @@
                     <div class="empty">No users found.</div>
                 </div>
 
+                <div class="section-title">Computing Analytics</div>
+                <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 32px; display: flex; align-items: center; gap: 40px; margin-bottom: 32px; background: #fff;">
+                    <div style="flex: 1; display: flex; flex-direction: column; align-items: center;">
+                        <div style="font-size: 13px; font-weight: 600; color: #111; margin-bottom: 24px; text-transform: uppercase; letter-spacing: 0.5px;">Batches Completion</div>
+                        <div id="donutBatches" style="width: 140px; height: 140px; border-radius: 50%; background: conic-gradient(#111 0% 0%, #f0f0f0 0% 100%); display: flex; align-items: center; justify-content: center;">
+                            <div style="width: 100px; height: 100px; border-radius: 50%; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                                <div id="donutBatchesPct" style="font-size: 24px; font-weight: 700; color: #111;">0%</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 24px; margin-top: 24px; font-size: 12px; color: #555; font-weight: 500;">
+                            <div style="display: flex; align-items: center; gap: 8px;"><div style="width:12px;height:12px;background:#111;border-radius:3px;"></div> <span id="donutBatchesComplete" style="font-weight:700;color:#111;">0</span> Complete</div>
+                            <div style="display: flex; align-items: center; gap: 8px;"><div style="width:12px;height:12px;background:#f0f0f0;border-radius:3px;border:1px solid #ddd;box-sizing:border-box;"></div> <span id="donutBatchesPending" style="font-weight:700;color:#111;">0</span> Pending</div>
+                        </div>
+                    </div>
+                    
+                    <div style="width: 1px; height: 140px; background: #eee;"></div>
+
+                    <div style="flex: 1; display: flex; flex-direction: column; align-items: center;">
+                        <div style="font-size: 13px; font-weight: 600; color: #111; margin-bottom: 24px; text-transform: uppercase; letter-spacing: 0.5px;">Items Progress</div>
+                        <div id="donutItems" style="width: 140px; height: 140px; border-radius: 50%; background: conic-gradient(#111 0% 0%, #f0f0f0 0% 100%); display: flex; align-items: center; justify-content: center;">
+                            <div style="width: 100px; height: 100px; border-radius: 50%; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                                <div id="donutItemsPct" style="font-size: 24px; font-weight: 700; color: #111;">0%</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 24px; margin-top: 24px; font-size: 12px; color: #555; font-weight: 500;">
+                            <div style="display: flex; align-items: center; gap: 8px;"><div style="width:12px;height:12px;background:#111;border-radius:3px;"></div> <span id="donutItemsChecked" style="font-weight:700;color:#111;">0</span> Checked</div>
+                            <div style="display: flex; align-items: center; gap: 8px;"><div style="width:12px;height:12px;background:#f0f0f0;border-radius:3px;border:1px solid #ddd;box-sizing:border-box;"></div> <span id="donutItemsUnchecked" style="font-weight:700;color:#111;">0</span> Unchecked</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 1b: All Batches -->
+            <div id="tab-batches" class="tab-pane">
                 <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom: 1.5px solid #111; margin-bottom: 16px; padding-bottom: 8px;">
                     <div class="section-title" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">All Batches</div>
                     <input type="text" id="batchSearch" placeholder="Search batch name..." onkeyup="filterBatches()" style="padding: 6px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; width: 250px; outline: none;">
@@ -753,6 +788,30 @@
                     `;
                 }).join('');
             }
+            
+            // Analytics Donut Charts
+            let totalBatches = data.batches.length;
+            let completeBatches = 0;
+            data.batches.forEach(b => {
+                if (b.item_count > 0 && b.checked_count === b.item_count) completeBatches++;
+            });
+            let pendingBatches = totalBatches - completeBatches;
+            let bPct = totalBatches > 0 ? Math.round((completeBatches / totalBatches) * 100) : 0;
+            
+            document.getElementById('donutBatches').style.background = `conic-gradient(#111 0% ${bPct}%, #f0f0f0 ${bPct}% 100%)`;
+            document.getElementById('donutBatchesPct').textContent = bPct + '%';
+            document.getElementById('donutBatchesComplete').textContent = completeBatches;
+            document.getElementById('donutBatchesPending').textContent = pendingBatches;
+            
+            let totalItems = parseInt(data.stats.items) || 0;
+            let checkedItems = parseInt(data.stats.checked) || 0;
+            let uncheckedItems = totalItems - checkedItems;
+            let iPct = totalItems > 0 ? Math.round((checkedItems / totalItems) * 100) : 0;
+            
+            document.getElementById('donutItems').style.background = `conic-gradient(#111 0% ${iPct}%, #f0f0f0 ${iPct}% 100%)`;
+            document.getElementById('donutItemsPct').textContent = iPct + '%';
+            document.getElementById('donutItemsChecked').textContent = checkedItems;
+            document.getElementById('donutItemsUnchecked').textContent = uncheckedItems;
 
             // Batches Table
             allBatchesData = data.batches;
