@@ -218,9 +218,46 @@
         .badge-delete  { background: #fdecea; color: #c62828; }
         .badge-check   { background: #e3f2fd; color: #1565c0; }
         .badge-uncheck { background: #fff3e0; color: #e65100; }
-        .badge-update  { background: #f3e5f5; color: #6a1b9a; }
+        .status-500 { background: #fee2e2; color: #991b1b; }
 
-        .feed-body { flex: 1; min-width: 0; }
+        .page-btn, .page-num {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            background: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #333;
+            transition: all 0.2s ease;
+        }
+        .page-btn:hover:not(:disabled), .page-num:hover:not(.active) {
+            background: #f5f5f5;
+            border-color: #ccc;
+        }
+        .page-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .page-num.active {
+            background: #111;
+            color: #fff;
+            border-color: #111;
+            cursor: default;
+        }
+        #batchPageSize {
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+            outline: none;
+            margin-right: 8px;
+            cursor: pointer;
+        }
+        #batchPageSize:focus {
+            border-color: #111;
+        }
+
+        .stat-card { flex: 1; min-width: 0; }
         .feed-user { font-weight: 600; font-size: 13px; }
         .feed-detail { color: #555; font-size: 12px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .feed-time { font-size: 11px; color: #999; flex-shrink: 0; margin-top: 2px; }
@@ -438,6 +475,21 @@
                         <tbody id="batchTable"><tr><td colspan="8" class="empty">Loading...</td></tr></tbody>
                     </table>
                 </div>
+                <!-- Pagination Controls -->
+                <div id="batchPagination" style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding: 12px 16px; background: #fff; border: 1px solid #e0e0e0; border-radius: 6px;">
+                    <div id="batchPageInfo" style="font-size: 13px; color: #666; font-weight: 500;">Showing 0 to 0 of 0 batches</div>
+                    <div style="display: flex; gap: 4px; align-items: center;">
+                        <select id="batchPageSize" onchange="changeBatchPageSize()">
+                            <option value="10">10 / page</option>
+                            <option value="15" selected>15 / page</option>
+                            <option value="30">30 / page</option>
+                            <option value="50">50 / page</option>
+                        </select>
+                        <button class="page-btn" onclick="changeBatchPage(-1)" id="batchPrevBtn" disabled>&larr; Prev</button>
+                        <div id="batchPageNumbers" style="display: flex; gap: 4px;"></div>
+                        <button class="page-btn" onclick="changeBatchPage(1)" id="batchNextBtn" disabled>Next &rarr;</button>
+                    </div>
+                </div>
             </div>
 
             <!-- Tab 2: User Activity Log -->
@@ -475,6 +527,9 @@
 
 <script>
     const KEY = 'MONITOR2026';
+    let allBatchesData = [];
+    let currentBatchPage = 1;
+    let batchesPerPage = 15;
 
     function switchTab(tabId, el) {
         document.querySelectorAll('.tab-pane').forEach(t => t.classList.remove('active'));
@@ -484,20 +539,111 @@
     }
 
     function filterBatches() {
-        const input = document.getElementById('batchSearch').value.toLowerCase();
-        const table = document.getElementById('batchTable');
-        const trs = table.getElementsByTagName('tr');
-        for (let i = 0; i < trs.length; i++) {
-            const td = trs[i].getElementsByTagName('td')[1]; // Column index 1 is "Batch Name"
-            if (td) {
-                const txtValue = td.textContent || td.innerText;
-                if (txtValue.toLowerCase().indexOf(input) > -1) {
-                    trs[i].style.display = "";
-                } else {
-                    trs[i].style.display = "none";
-                }
-            }       
+        currentBatchPage = 1;
+        renderBatchesTable();
+    }
+
+    function changeBatchPage(delta) {
+        currentBatchPage += delta;
+        renderBatchesTable();
+    }
+    
+    function goToBatchPage(page) {
+        currentBatchPage = page;
+        renderBatchesTable();
+    }
+    
+    function changeBatchPageSize() {
+        batchesPerPage = parseInt(document.getElementById('batchPageSize').value);
+        currentBatchPage = 1;
+        renderBatchesTable();
+    }
+
+    function renderBatchesTable() {
+        const tbody = document.getElementById('batchTable');
+        const searchInput = document.getElementById('batchSearch');
+        const filterText = searchInput ? searchInput.value.toLowerCase() : '';
+        
+        // Filter
+        const filtered = allBatchesData.filter(b => b.name.toLowerCase().includes(filterText));
+        
+        // Paginate
+        const totalItems = filtered.length;
+        const totalPages = Math.ceil(totalItems / batchesPerPage) || 1;
+        if (currentBatchPage > totalPages) currentBatchPage = totalPages;
+        if (currentBatchPage < 1) currentBatchPage = 1;
+        
+        const startIdx = (currentBatchPage - 1) * batchesPerPage;
+        const endIdx = startIdx + batchesPerPage;
+        const paginated = filtered.slice(startIdx, endIdx);
+        
+        // Render Table
+        if (paginated.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="empty">' + (allBatchesData.length === 0 ? 'No batches yet.' : 'No batches match your search.') + '</td></tr>';
+            document.getElementById('batchPageInfo').textContent = `Showing 0 to 0 of 0 batches`;
+            document.getElementById('batchPageNumbers').innerHTML = '';
+            document.getElementById('batchPrevBtn').disabled = true;
+            document.getElementById('batchNextBtn').disabled = true;
+            return;
         }
+        
+        tbody.innerHTML = paginated.map((b, idx) => {
+            const actualIndex = startIdx + idx + 1;
+            const pct = b.item_count > 0 ? Math.round((b.checked_count / b.item_count) * 100) : 0;
+            const isComplete = pct === 100;
+            
+            let dlButtonHTML = '<span style="font-size:11px;color:#999;">—</span>';
+            if (isComplete) {
+                dlButtonHTML = `
+                        <button class="dl-icon-only complete" title="100% Complete — Download PDF" onclick="downloadBatchPDF(${b.id}, '${b.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}', ${b.item_count}, ${b.checked_count}, ${pct})">
+                            <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 12 15.75 15 12.75M12 15.75V8.25M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                            </svg>
+                        </button>
+                `;
+            }
+
+            return `
+                <tr>
+                    <td style="color:#aaa;">${actualIndex}</td>
+                    <td><strong>${b.name}</strong></td>
+                    <td>${b.item_count}</td>
+                    <td><span class="pill pill-blue">${b.checked_count}</span></td>
+                    <td>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <div style="flex:1;height:6px;background:#eee;border-radius:4px;overflow:hidden;">
+                                <div style="height:100%;width:${pct}%;background:${isComplete ? '#2e7d32' : '#111'};"></div>
+                            </div>
+                            <span style="font-size:11px;color:${isComplete ? '#2e7d32' : '#555'};font-weight:${isComplete ? '700' : '400'};width:32px;">${pct}%</span>
+                        </div>
+                    </td>
+                    <td style="color:#777;">${formatTime(b.created_at)}</td>
+                    <td style="color:#777;">${formatTime(b.updated_at)}</td>
+                    <td style="text-align:center;">
+                        ${dlButtonHTML}
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        
+        // Update Pagination UI
+        document.getElementById('batchPageInfo').textContent = `Showing ${startIdx + 1} to ${Math.min(endIdx, totalItems)} of ${totalItems} batches`;
+        
+        document.getElementById('batchPrevBtn').disabled = currentBatchPage === 1;
+        document.getElementById('batchNextBtn').disabled = currentBatchPage === totalPages;
+        
+        // Build page numbers
+        let pageHTML = '';
+        let startPage = Math.max(1, currentBatchPage - 2);
+        let endPage = Math.min(totalPages, startPage + 4);
+        if (endPage - startPage < 4) {
+            startPage = Math.max(1, endPage - 4);
+        }
+        
+        for (let p = startPage; p <= endPage; p++) {
+            pageHTML += `<button class="page-num ${p === currentBatchPage ? 'active' : ''}" onclick="goToBatchPage(${p})">${p}</button>`;
+        }
+        document.getElementById('batchPageNumbers').innerHTML = pageHTML;
     }
 
     function updateClock() {
@@ -609,48 +755,8 @@
             }
 
             // Batches Table
-            const tbody = document.getElementById('batchTable');
-            if (data.batches.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="empty">No batches yet.</td></tr>';
-            } else {
-                tbody.innerHTML = data.batches.map((b, i) => {
-                    const pct = b.item_count > 0 ? Math.round((b.checked_count / b.item_count) * 100) : 0;
-                    const isComplete = pct === 100;
-                    
-                    let dlButtonHTML = '<span style="font-size:11px;color:#999;">—</span>';
-                    if (isComplete) {
-                        dlButtonHTML = `
-                                <button class="dl-icon-only complete" title="100% Complete — Download PDF" onclick="downloadBatchPDF(${b.id}, '${b.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}', ${b.item_count}, ${b.checked_count}, ${pct})">
-                                    <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 12 15.75 15 12.75M12 15.75V8.25M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                                    </svg>
-                                </button>
-                        `;
-                    }
-
-                    return `
-                        <tr>
-                            <td style="color:#aaa;">${i + 1}</td>
-                            <td><strong>${b.name}</strong></td>
-                            <td>${b.item_count}</td>
-                            <td><span class="pill pill-blue">${b.checked_count}</span></td>
-                            <td>
-                                <div style="display:flex;align-items:center;gap:8px;">
-                                    <div style="flex:1;height:6px;background:#eee;border-radius:4px;overflow:hidden;">
-                                        <div style="height:100%;width:${pct}%;background:${isComplete ? '#2e7d32' : '#111'};"></div>
-                                    </div>
-                                    <span style="font-size:11px;color:${isComplete ? '#2e7d32' : '#555'};font-weight:${isComplete ? '700' : '400'};width:32px;">${pct}%</span>
-                                </div>
-                            </td>
-                            <td style="color:#777;">${formatTime(b.created_at)}</td>
-                            <td style="color:#777;">${formatTime(b.updated_at)}</td>
-                            <td style="text-align:center;">
-                                ${dlButtonHTML}
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
-            }
+            allBatchesData = data.batches;
+            renderBatchesTable();
 
             // API Logs Table
             const apiTbody = document.getElementById('apiTable');
@@ -671,10 +777,7 @@
             document.getElementById('loadingMsg').style.display = 'none';
             document.getElementById('mainContent').style.display = 'block';
             
-            // Re-apply filter if user has typed something
-            if (document.getElementById('batchSearch') && document.getElementById('batchSearch').value) {
-                filterBatches();
-            }
+
 
         } catch (err) {
             badge.className = 'status-badge err';
