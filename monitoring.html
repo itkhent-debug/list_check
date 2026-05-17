@@ -244,7 +244,7 @@
             border-color: #111;
             cursor: default;
         }
-        #batchPageSize {
+        .page-size-select {
             padding: 6px 8px;
             border: 1px solid #ddd;
             border-radius: 4px;
@@ -253,7 +253,7 @@
             margin-right: 8px;
             cursor: pointer;
         }
-        #batchPageSize:focus {
+        .page-size-select:focus {
             border-color: #111;
         }
 
@@ -514,7 +514,7 @@
                 <div id="batchPagination" style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding: 12px 16px; background: #fff; border: 1px solid #e0e0e0; border-radius: 6px;">
                     <div id="batchPageInfo" style="font-size: 13px; color: #666; font-weight: 500;">Showing 0 to 0 of 0 batches</div>
                     <div style="display: flex; gap: 4px; align-items: center;">
-                        <select id="batchPageSize" onchange="changeBatchPageSize()">
+                        <select id="batchPageSize" onchange="changeBatchPageSize()" class="page-size-select">
                             <option value="10">10 / page</option>
                             <option value="15" selected>15 / page</option>
                             <option value="30">30 / page</option>
@@ -532,6 +532,21 @@
                 <div class="section-title">Recent User Actions</div>
                 <div class="feed" id="activityFeed">
                     <div class="empty">No activity yet.</div>
+                </div>
+                <!-- Pagination Controls -->
+                <div id="activityPagination" style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding: 12px 16px; background: #fff; border: 1px solid #e0e0e0; border-radius: 6px;">
+                    <div id="activityPageInfo" style="font-size: 13px; color: #666; font-weight: 500;">Showing 0 to 0 of 0 logs</div>
+                    <div style="display: flex; gap: 4px; align-items: center;">
+                        <select id="activityPageSize" onchange="changeActivityPageSize()" class="page-size-select">
+                            <option value="10">10 / page</option>
+                            <option value="15" selected>15 / page</option>
+                            <option value="30">30 / page</option>
+                            <option value="50">50 / page</option>
+                        </select>
+                        <button class="page-btn" onclick="changeActivityPage(-1)" id="activityPrevBtn" disabled>&larr; Prev</button>
+                        <div id="activityPageNumbers" style="display: flex; gap: 4px;"></div>
+                        <button class="page-btn" onclick="changeActivityPage(1)" id="activityNextBtn" disabled>Next &rarr;</button>
+                    </div>
                 </div>
             </div>
 
@@ -554,6 +569,21 @@
                         </tbody>
                     </table>
                 </div>
+                <!-- Pagination Controls -->
+                <div id="networkPagination" style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding: 12px 16px; background: #fff; border: 1px solid #e0e0e0; border-radius: 6px;">
+                    <div id="networkPageInfo" style="font-size: 13px; color: #666; font-weight: 500;">Showing 0 to 0 of 0 requests</div>
+                    <div style="display: flex; gap: 4px; align-items: center;">
+                        <select id="networkPageSize" onchange="changeNetworkPageSize()" class="page-size-select">
+                            <option value="10">10 / page</option>
+                            <option value="15" selected>15 / page</option>
+                            <option value="30">30 / page</option>
+                            <option value="50">50 / page</option>
+                        </select>
+                        <button class="page-btn" onclick="changeNetworkPage(-1)" id="networkPrevBtn" disabled>&larr; Prev</button>
+                        <div id="networkPageNumbers" style="display: flex; gap: 4px;"></div>
+                        <button class="page-btn" onclick="changeNetworkPage(1)" id="networkNextBtn" disabled>Next &rarr;</button>
+                    </div>
+                </div>
             </div>
 
         </div>
@@ -565,6 +595,14 @@
     let allBatchesData = [];
     let currentBatchPage = 1;
     let batchesPerPage = 15;
+
+    let allActivityData = [];
+    let currentActivityPage = 1;
+    let activityPerPage = 15;
+
+    let allNetworkData = [];
+    let currentNetworkPage = 1;
+    let networkPerPage = 15;
 
     function switchTab(tabId, el) {
         document.querySelectorAll('.tab-pane').forEach(t => t.classList.remove('active'));
@@ -681,6 +719,137 @@
         document.getElementById('batchPageNumbers').innerHTML = pageHTML;
     }
 
+    function changeActivityPage(delta) {
+        currentActivityPage += delta;
+        renderActivityFeed();
+    }
+    
+    function goToActivityPage(page) {
+        currentActivityPage = page;
+        renderActivityFeed();
+    }
+    
+    function changeActivityPageSize() {
+        activityPerPage = parseInt(document.getElementById('activityPageSize').value);
+        currentActivityPage = 1;
+        renderActivityFeed();
+    }
+
+    function renderActivityFeed() {
+        const feed = document.getElementById('activityFeed');
+        
+        const totalItems = allActivityData.length;
+        const totalPages = Math.ceil(totalItems / activityPerPage) || 1;
+        if (currentActivityPage > totalPages) currentActivityPage = totalPages;
+        if (currentActivityPage < 1) currentActivityPage = 1;
+        
+        const startIdx = (currentActivityPage - 1) * activityPerPage;
+        const endIdx = startIdx + activityPerPage;
+        const paginated = allActivityData.slice(startIdx, endIdx);
+        
+        if (paginated.length === 0) {
+            feed.innerHTML = '<div class="empty">No activity logged yet.</div>';
+            document.getElementById('activityPageInfo').textContent = `Showing 0 to 0 of 0 logs`;
+            document.getElementById('activityPageNumbers').innerHTML = '';
+            document.getElementById('activityPrevBtn').disabled = true;
+            document.getElementById('activityNextBtn').disabled = true;
+            return;
+        }
+        
+        feed.innerHTML = paginated.map(log => `
+            <div class="feed-item">
+                <span class="feed-badge ${badgeClass(log.action)}">${actionLabel(log.action)}</span>
+                <div class="feed-body">
+                    <div class="feed-user">${log.user_name} <span style="font-weight:400;color:#888;font-size:11px;">${log.user_email}</span></div>
+                    <div class="feed-detail">${actionDetail(log)}</div>
+                </div>
+                <div class="feed-time">${formatTime(log.created_at)}</div>
+            </div>
+        `).join('');
+        
+        document.getElementById('activityPageInfo').textContent = `Showing ${startIdx + 1} to ${Math.min(endIdx, totalItems)} of ${totalItems} logs`;
+        
+        document.getElementById('activityPrevBtn').disabled = currentActivityPage === 1;
+        document.getElementById('activityNextBtn').disabled = currentActivityPage === totalPages;
+        
+        let pageHTML = '';
+        let startPage = Math.max(1, currentActivityPage - 2);
+        let endPage = Math.min(totalPages, startPage + 4);
+        if (endPage - startPage < 4) {
+            startPage = Math.max(1, endPage - 4);
+        }
+        
+        for (let p = startPage; p <= endPage; p++) {
+            pageHTML += `<button class="page-num ${p === currentActivityPage ? 'active' : ''}" onclick="goToActivityPage(${p})">${p}</button>`;
+        }
+        document.getElementById('activityPageNumbers').innerHTML = pageHTML;
+    }
+
+    function changeNetworkPage(delta) {
+        currentNetworkPage += delta;
+        renderNetworkTable();
+    }
+    
+    function goToNetworkPage(page) {
+        currentNetworkPage = page;
+        renderNetworkTable();
+    }
+    
+    function changeNetworkPageSize() {
+        networkPerPage = parseInt(document.getElementById('networkPageSize').value);
+        currentNetworkPage = 1;
+        renderNetworkTable();
+    }
+
+    function renderNetworkTable() {
+        const tbody = document.getElementById('apiTable');
+        
+        const totalItems = allNetworkData.length;
+        const totalPages = Math.ceil(totalItems / networkPerPage) || 1;
+        if (currentNetworkPage > totalPages) currentNetworkPage = totalPages;
+        if (currentNetworkPage < 1) currentNetworkPage = 1;
+        
+        const startIdx = (currentNetworkPage - 1) * networkPerPage;
+        const endIdx = startIdx + networkPerPage;
+        const paginated = allNetworkData.slice(startIdx, endIdx);
+        
+        if (paginated.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="empty">No network requests logged yet.</td></tr>';
+            document.getElementById('networkPageInfo').textContent = `Showing 0 to 0 of 0 requests`;
+            document.getElementById('networkPageNumbers').innerHTML = '';
+            document.getElementById('networkPrevBtn').disabled = true;
+            document.getElementById('networkNextBtn').disabled = true;
+            return;
+        }
+        
+        tbody.innerHTML = paginated.map(log => `
+            <tr>
+                <td>${formatTime(log.created_at)}</td>
+                <td class="${getMethodClass(log.method)}">${log.method}</td>
+                <td style="font-family:monospace;color:#444;">${log.path}</td>
+                <td class="${getStatusClass(log.http_status)}">${log.http_status}</td>
+                <td style="color:#555;">${log.duration_ms}ms</td>
+            </tr>
+        `).join('');
+        
+        document.getElementById('networkPageInfo').textContent = `Showing ${startIdx + 1} to ${Math.min(endIdx, totalItems)} of ${totalItems} requests`;
+        
+        document.getElementById('networkPrevBtn').disabled = currentNetworkPage === 1;
+        document.getElementById('networkNextBtn').disabled = currentNetworkPage === totalPages;
+        
+        let pageHTML = '';
+        let startPage = Math.max(1, currentNetworkPage - 2);
+        let endPage = Math.min(totalPages, startPage + 4);
+        if (endPage - startPage < 4) {
+            startPage = Math.max(1, endPage - 4);
+        }
+        
+        for (let p = startPage; p <= endPage; p++) {
+            pageHTML += `<button class="page-num ${p === currentNetworkPage ? 'active' : ''}" onclick="goToNetworkPage(${p})">${p}</button>`;
+        }
+        document.getElementById('networkPageNumbers').innerHTML = pageHTML;
+    }
+
     function updateClock() {
         const now = new Date();
         document.getElementById('clockDisplay').textContent =
@@ -746,21 +915,8 @@
             document.getElementById('sDeleted').textContent = data.stats.deleted_batches;
 
             // Activity Feed
-            const feed = document.getElementById('activityFeed');
-            if (data.logs.length === 0) {
-                feed.innerHTML = '<div class="empty">No activity logged yet.</div>';
-            } else {
-                feed.innerHTML = data.logs.map(log => `
-                    <div class="feed-item">
-                        <span class="feed-badge ${badgeClass(log.action)}">${actionLabel(log.action)}</span>
-                        <div class="feed-body">
-                            <div class="feed-user">${log.user_name} <span style="font-weight:400;color:#888;font-size:11px;">${log.user_email}</span></div>
-                            <div class="feed-detail">${actionDetail(log)}</div>
-                        </div>
-                        <div class="feed-time">${formatTime(log.created_at)}</div>
-                    </div>
-                `).join('');
-            }
+            allActivityData = data.logs || [];
+            renderActivityFeed();
 
             // User Cards
             const actMap = {};
@@ -818,20 +974,8 @@
             renderBatchesTable();
 
             // API Logs Table
-            const apiTbody = document.getElementById('apiTable');
-            if (data.api_logs && data.api_logs.length > 0) {
-                apiTbody.innerHTML = data.api_logs.map(log => `
-                    <tr>
-                        <td>${formatTime(log.created_at)}</td>
-                        <td class="${getMethodClass(log.method)}">${log.method}</td>
-                        <td style="font-family:monospace;color:#444;">${log.path}</td>
-                        <td class="${getStatusClass(log.http_status)}">${log.http_status}</td>
-                        <td style="color:#555;">${log.duration_ms}ms</td>
-                    </tr>
-                `).join('');
-            } else {
-                apiTbody.innerHTML = '<tr><td colspan="5" class="empty">No network requests logged yet.</td></tr>';
-            }
+            allNetworkData = data.api_logs || [];
+            renderNetworkTable();
 
             document.getElementById('loadingMsg').style.display = 'none';
             document.getElementById('mainContent').style.display = 'block';
