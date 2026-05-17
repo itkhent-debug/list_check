@@ -428,7 +428,10 @@
                     <div class="empty">No users found.</div>
                 </div>
 
-                <div class="section-title">All Batches</div>
+                <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom: 1.5px solid #111; margin-bottom: 16px; padding-bottom: 8px;">
+                    <div class="section-title" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">All Batches</div>
+                    <input type="text" id="batchSearch" placeholder="Search batch name..." onkeyup="filterBatches()" style="padding: 6px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; width: 250px; outline: none;">
+                </div>
                 <div class="table-wrap">
                     <table>
                         <thead><tr><th>#</th><th>Batch Name</th><th>Items</th><th>Checked</th><th>Progress</th><th>Created</th><th>Updated</th><th style="text-align:center;">PDF</th></tr></thead>
@@ -478,6 +481,23 @@
         document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
         document.getElementById('tab-' + tabId).classList.add('active');
         el.classList.add('active');
+    }
+
+    function filterBatches() {
+        const input = document.getElementById('batchSearch').value.toLowerCase();
+        const table = document.getElementById('batchTable');
+        const trs = table.getElementsByTagName('tr');
+        for (let i = 0; i < trs.length; i++) {
+            const td = trs[i].getElementsByTagName('td')[1]; // Column index 1 is "Batch Name"
+            if (td) {
+                const txtValue = td.textContent || td.innerText;
+                if (txtValue.toLowerCase().indexOf(input) > -1) {
+                    trs[i].style.display = "";
+                } else {
+                    trs[i].style.display = "none";
+                }
+            }       
+        }
     }
 
     function updateClock() {
@@ -650,6 +670,11 @@
 
             document.getElementById('loadingMsg').style.display = 'none';
             document.getElementById('mainContent').style.display = 'block';
+            
+            // Re-apply filter if user has typed something
+            if (document.getElementById('batchSearch') && document.getElementById('batchSearch').value) {
+                filterBatches();
+            }
 
         } catch (err) {
             badge.className = 'status-badge err';
