@@ -2574,6 +2574,12 @@
             
             // Update glider position when opening
             if (wrapper.classList.contains('open')) {
+                const searchInput = document.getElementById('batchDropdownSearch');
+                if (searchInput) {
+                    searchInput.value = '';
+                    filterBatchDropdown();
+                    setTimeout(() => searchInput.focus(), 50);
+                }
                 setTimeout(updateGliderPosition, 10);
             }
         }
@@ -2957,7 +2963,8 @@
             const optionsContainer = document.getElementById('batchSelectOptions');
             const batches = await api('batches.php');
             
-            let html = '<div class="glider-container"><div class="glider" id="batchGlider"></div></div>';
+            let html = '<div style="position: sticky; top: 0; background: var(--bg-card); z-index: 10; margin: 0; padding: 4px 8px 8px 8px; border-bottom: 1px solid var(--border-color);"><input type="text" id="batchDropdownSearch" placeholder="Search batch..." onkeyup="filterBatchDropdown()" onclick="event.stopPropagation()" style="width: 100%; padding: 8px; font-size: 13px; border-radius: 6px; border: 1px solid var(--border-light); background: var(--bg-tertiary); color: var(--text-primary); outline: none; box-sizing: border-box;"></div>';
+            html += '<div class="glider-container" style="top: 52px;"><div class="glider" id="batchGlider"></div></div>';
             html += '<div class="custom-select-option" data-value="" onclick="event.stopPropagation(); selectBatch(\'\', \'\')">-- Select Batch --</div>';
             
             if (Array.isArray(batches)) {
@@ -3040,6 +3047,24 @@
             
             await loadBatchList();
             showToast(`Batch "${name}" saved!`);
+        }
+
+        function filterBatchDropdown() {
+            const input = document.getElementById('batchDropdownSearch').value.toLowerCase();
+            const container = document.getElementById('batchSelectOptions');
+            const options = container.getElementsByClassName('custom-select-option');
+            
+            for (let i = 0; i < options.length; i++) {
+                if (options[i].getAttribute('data-value') === "") {
+                    continue; // Skip the placeholder
+                }
+                const txtValue = options[i].textContent || options[i].innerText;
+                if (txtValue.toLowerCase().indexOf(input) > -1) {
+                    options[i].style.display = "";
+                } else {
+                    options[i].style.display = "none";
+                }
+            }
         }
 
         async function loadBatch() {
