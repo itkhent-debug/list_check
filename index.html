@@ -1798,7 +1798,7 @@
                             <span id="batchSelectText">-- Select Batch --</span>
                             <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6,9 12,15 18,9"/></svg>
                         </div>
-                        <div class="custom-select-options" id="batchSelectOptions">
+                        <div class="custom-select-options" id="batchSelectOptions" onclick="event.stopPropagation()">
                             <div class="glider-container"><div class="glider" id="batchGlider"></div></div>
                         </div>
                     </div>
@@ -2605,14 +2605,17 @@
             const glider = document.getElementById('batchGlider');
             const container = document.getElementById('batchSelectOptions');
             
-            if (selectedOpt && glider && container) {
+            if (selectedOpt && glider && container && selectedOpt.style.display !== 'none') {
                 // Account for scroll position
                 const offset = selectedOpt.offsetTop - 8; // -8 for container padding
                 glider.style.transform = `translateY(${offset}px)`;
                 glider.style.height = `${selectedOpt.offsetHeight}px`;
+                glider.style.opacity = '1';
                 
                 // Scroll selected item into view
                 selectedOpt.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            } else if (glider) {
+                glider.style.opacity = '0';
             }
         }
 
@@ -3053,18 +3056,41 @@
             const input = document.getElementById('batchDropdownSearch').value.toLowerCase();
             const container = document.getElementById('batchSelectOptions');
             const options = container.getElementsByClassName('custom-select-option');
+            let hasVisible = false;
             
             for (let i = 0; i < options.length; i++) {
                 if (options[i].getAttribute('data-value') === "") {
-                    continue; // Skip the placeholder
+                    // Hide placeholder while searching
+                    options[i].style.display = input.length > 0 ? "none" : "";
+                    continue; 
                 }
                 const txtValue = options[i].textContent || options[i].innerText;
                 if (txtValue.toLowerCase().indexOf(input) > -1) {
                     options[i].style.display = "";
+                    hasVisible = true;
                 } else {
                     options[i].style.display = "none";
                 }
             }
+            
+            let emptyMsg = document.getElementById('batchSearchEmptyMsg');
+            if (!hasVisible && input.length > 0) {
+                if (!emptyMsg) {
+                    emptyMsg = document.createElement('div');
+                    emptyMsg.id = 'batchSearchEmptyMsg';
+                    emptyMsg.style.padding = '10px 14px';
+                    emptyMsg.style.color = '#737373';
+                    emptyMsg.style.fontSize = '0.9rem';
+                    emptyMsg.style.textAlign = 'center';
+                    emptyMsg.textContent = 'No matching batches';
+                    container.appendChild(emptyMsg);
+                }
+                emptyMsg.style.display = 'block';
+            } else if (emptyMsg) {
+                emptyMsg.style.display = 'none';
+            }
+            
+            updateGliderPosition();
         }
 
         async function loadBatch() {
