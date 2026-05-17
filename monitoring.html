@@ -1126,14 +1126,37 @@
 
     let currentExportParams = null;
 
-    function openExportModal(batchId, batchName, itemCount, checkedCount, pct) {
+    async function openExportModal(batchId, batchName, itemCount, checkedCount, pct) {
         currentExportParams = { batchId, batchName, itemCount, checkedCount, pct };
         document.getElementById('exWorkflowName').value = batchName;
-        document.getElementById('exIncludeGap').value = 'Yes';
         document.getElementById('exAssignedTo').value = '';
         document.getElementById('exOrganization').value = '';
         document.getElementById('exCasinoName').value = '';
         document.getElementById('exCampaignDates').value = '';
+
+        const selectEl = document.getElementById('exIncludeGap');
+        selectEl.innerHTML = `
+            <option value="Yes" selected>Auto-Calculate Current Gap</option>
+            <option value="None">-- None --</option>
+        `;
+
+        try {
+            const res = await fetch(`api/workflow_gaps.php?key=${KEY}`);
+            if (res.ok) {
+                const gaps = await res.json();
+                if (Array.isArray(gaps) && gaps.length > 0) {
+                    gaps.forEach(g => {
+                        const opt = document.createElement('option');
+                        opt.value = JSON.stringify(g);
+                        opt.textContent = `[Saved] ${g.workflow} (${g.gap})`;
+                        selectEl.appendChild(opt);
+                    });
+                }
+            }
+        } catch (e) {
+            console.error('Error fetching gaps:', e);
+        }
+
         document.getElementById('exportModal').style.display = 'flex';
     }
 
@@ -1145,13 +1168,26 @@
     function triggerPdfExport() {
         if (!currentExportParams) return;
         
+        let includeGap = false;
+        let savedGapData = null;
+        const gapVal = document.getElementById('exIncludeGap').value;
+        if (gapVal === 'Yes') {
+            includeGap = true;
+        } else if (gapVal !== 'None') {
+            includeGap = true;
+            try {
+                savedGapData = JSON.parse(gapVal);
+            } catch(e) {}
+        }
+        
         const params = {
             ...currentExportParams,
             assignedTo: document.getElementById('exAssignedTo').value || '—',
             organization: document.getElementById('exOrganization').value || '—',
             casinoName: document.getElementById('exCasinoName').value || '—',
             campaignDates: document.getElementById('exCampaignDates').value || '—',
-            includeGap: document.getElementById('exIncludeGap').value === 'Yes',
+            includeGap: includeGap,
+            savedGapData: savedGapData,
             workflowName: document.getElementById('exWorkflowName').value || currentExportParams.batchName
         };
         
@@ -1290,16 +1326,23 @@
                     doc.text('Workflow Gap Summary', pageW / 2, finalY + 7, { align: 'center' });
                     
                     doc.setFont('helvetica', 'normal');
-                    doc.text(`Workflow: ${workflowName}`, margin + 5, finalY + 16);
                     
-                    const totalGap = items.length > 1 ? calculateTotalGap(items[0], items[items.length - 1]) : '0hrs';
-                    doc.text(`Total Gap: ${totalGap}`, margin + 5, finalY + 23);
+                    let summaryWorkflow = params.workflowName;
+                    let summaryGap = items.length > 1 ? calculateTotalGap(items[0], items[items.length - 1]) : '0hrs';
+                    let summaryFirst = items.length > 0 ? items[0].name : '—';
+                    let summaryLast = items.length > 0 ? items[items.length - 1].name : '—';
                     
-                    const firstItemName = items.length > 0 ? items[0].name : '—';
-                    const lastItemName = items.length > 0 ? items[items.length - 1].name : '—';
-                    
-                    doc.text(`From: ${firstItemName}`, margin + 5, finalY + 30);
-                    doc.text(`To: ${lastItemName}`, pageW / 2 + 10, finalY + 30);
+                    if (params.savedGapData) {
+                        summaryWorkflow = params.savedGapData.workflow || summaryWorkflow;
+                        summaryGap = params.savedGapData.gap || summaryGap;
+                        summaryFirst = params.savedGapData.from_item || summaryFirst;
+                        summaryLast = params.savedGapData.to_item || summaryLast;
+                    }
+
+                    doc.text(`Workflow: ${summaryWorkflow}`, margin + 5, finalY + 16);
+                    doc.text(`Total Gap: ${summaryGap}`, margin + 5, finalY + 23);
+                    doc.text(`From: ${summaryFirst}`, margin + 5, finalY + 30);
+                    doc.text(`To: ${summaryLast}`, pageW / 2 + 10, finalY + 30);
                 }
 
             } else {
