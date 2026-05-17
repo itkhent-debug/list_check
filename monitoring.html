@@ -1051,11 +1051,11 @@
                     idx + 1,
                     item.name || '',
                     item.label || '',
-                    item.item_date ? item.item_date.split('T')[0] : '—',
-                    item.item_time ? item.item_time.substring(0, 5) : '—',
-                    item.checked == 1 ? 'OK' : '—',
-                    item.time_ok == 1 ? 'OK' : '—',
-                    item.crm_ok == 1 ? 'OK' : '—',
+                    item.date ? item.date.split('T')[0] : '—',
+                    item.time ? item.time.substring(0, 5) : '—',
+                    item.checked ? 'OK' : '—',
+                    item.timeOk ? 'OK' : '—',
+                    item.crmOk ? 'OK' : '—',
                 ]);
 
                 doc.autoTable({
