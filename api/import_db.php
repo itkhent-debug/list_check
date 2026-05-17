@@ -21,6 +21,11 @@ if (empty($sql)) {
     die("SQL file is empty");
 }
 
+// Drop existing tables to avoid "Table already exists" errors
+$conn->query("SET FOREIGN_KEY_CHECKS = 0");
+$conn->query("DROP TABLE IF EXISTS batches, items, tags, batch_tags, users, visitors, workflow_gaps");
+$conn->query("SET FOREIGN_KEY_CHECKS = 1");
+
 // Execute the multi query
 if ($conn->multi_query($sql)) {
     do {
