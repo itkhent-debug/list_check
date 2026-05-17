@@ -6,6 +6,8 @@
     <title>monitoring.co — CRM Dashboard Monitor</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -316,6 +318,44 @@
         }
 
         .refresh-note { font-size: 11px; color: #aaa; }
+
+        /* ── Download PDF Button ── */
+        .dl-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 10px;
+            border: 1.5px solid #ccc;
+            border-radius: 6px;
+            background: #fff;
+            color: #555;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        .dl-btn:hover {
+            border-color: #111;
+            color: #111;
+            background: #f5f5f5;
+        }
+        .dl-btn.complete {
+            border-color: #2e7d32;
+            color: #2e7d32;
+            background: #e8f5e9;
+            box-shadow: 0 0 0 2px #a5d6a7;
+            animation: pulse-green 2s infinite;
+        }
+        .dl-btn.complete:hover {
+            background: #c8e6c9;
+        }
+        @keyframes pulse-green {
+            0%, 100% { box-shadow: 0 0 0 2px #a5d6a7; }
+            50% { box-shadow: 0 0 0 5px #c8e6c9; }
+        }
+        .dl-btn svg { flex-shrink: 0; }
     </style>
 </head>
 <body>
@@ -366,8 +406,8 @@
                 <div class="section-title">All Batches</div>
                 <div class="table-wrap">
                     <table>
-                        <thead><tr><th>#</th><th>Batch Name</th><th>Items</th><th>Checked</th><th>Progress</th><th>Created</th><th>Updated</th></tr></thead>
-                        <tbody id="batchTable"><tr><td colspan="7" class="empty">Loading...</td></tr></tbody>
+                        <thead><tr><th>#</th><th>Batch Name</th><th>Items</th><th>Checked</th><th>Progress</th><th>Created</th><th>Updated</th><th style="text-align:center;">PDF</th></tr></thead>
+                        <tbody id="batchTable"><tr><td colspan="8" class="empty">Loading...</td></tr></tbody>
                     </table>
                 </div>
             </div>
@@ -526,10 +566,24 @@
             // Batches Table
             const tbody = document.getElementById('batchTable');
             if (data.batches.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="empty">No batches yet.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="empty">No batches yet.</td></tr>';
             } else {
                 tbody.innerHTML = data.batches.map((b, i) => {
                     const pct = b.item_count > 0 ? Math.round((b.checked_count / b.item_count) * 100) : 0;
+                    const isComplete = pct === 100;
+                    
+                    let dlButtonHTML = '<span style="font-size:11px;color:#999;">—</span>';
+                    if (isComplete) {
+                        dlButtonHTML = `
+                                <button class="dl-btn complete" title="100% Complete — Download PDF" onclick="downloadBatchPDF(${b.id}, '${b.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}', ${b.item_count}, ${b.checked_count}, ${pct})">
+                                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 4v11"/>
+                                    </svg>
+                                    PDF ✓
+                                </button>
+                        `;
+                    }
+
                     return `
                         <tr>
                             <td style="color:#aaa;">${i + 1}</td>
@@ -539,13 +593,16 @@
                             <td>
                                 <div style="display:flex;align-items:center;gap:8px;">
                                     <div style="flex:1;height:6px;background:#eee;border-radius:4px;overflow:hidden;">
-                                        <div style="height:100%;width:${pct}%;background:#111;"></div>
+                                        <div style="height:100%;width:${pct}%;background:${isComplete ? '#2e7d32' : '#111'};"></div>
                                     </div>
-                                    <span style="font-size:11px;color:#555;width:28px;">${pct}%</span>
+                                    <span style="font-size:11px;color:${isComplete ? '#2e7d32' : '#555'};font-weight:${isComplete ? '700' : '400'};width:32px;">${pct}%</span>
                                 </div>
                             </td>
                             <td style="color:#777;">${formatTime(b.created_at)}</td>
                             <td style="color:#777;">${formatTime(b.updated_at)}</td>
+                            <td style="text-align:center;">
+                                ${dlButtonHTML}
+                            </td>
                         </tr>
                     `;
                 }).join('');
@@ -576,6 +633,125 @@
             if (document.getElementById('loadingMsg').style.display !== 'none') {
                 document.getElementById('loadingMsg').textContent = 'Failed to load data. ' + err.message;
             }
+        }
+    }
+
+    async function downloadBatchPDF(batchId, batchName, itemCount, checkedCount, pct) {
+        try {
+            // Fetch items for this batch
+            const res = await fetch(`api/items.php?batch_id=${batchId}&key=${KEY}`);
+            let items = [];
+            if (res.ok) {
+                const data = await res.json();
+                items = Array.isArray(data) ? data : (data.items || []);
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+            const pageW = doc.internal.pageSize.getWidth();
+            const margin = 14;
+
+            // Header bar
+            doc.setFillColor(17, 17, 17);
+            doc.rect(0, 0, pageW, 22, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(13);
+            doc.setFont('helvetica', 'bold');
+            doc.text('monitoring.co  —  Batch Sequence Report', margin, 14);
+
+            // Batch title
+            doc.setTextColor(17, 17, 17);
+            doc.setFontSize(16);
+            doc.setFont('helvetica', 'bold');
+            doc.text(batchName, margin, 36);
+
+            // Meta row
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(100, 100, 100);
+            const genDate = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            doc.text(`Generated: ${genDate}     Total Items: ${itemCount}     Checked: ${checkedCount}     Progress: ${pct}%`, margin, 44);
+
+            // Progress bar
+            doc.setFillColor(238, 238, 238);
+            doc.roundedRect(margin, 48, pageW - margin * 2, 4, 2, 2, 'F');
+            if (pct > 0) {
+                const barColor = pct === 100 ? [46, 125, 50] : [17, 17, 17];
+                doc.setFillColor(...barColor);
+                doc.roundedRect(margin, 48, (pageW - margin * 2) * (pct / 100), 4, 2, 2, 'F');
+            }
+            doc.setFontSize(8);
+            doc.setTextColor(pct === 100 ? 46 : 85, pct === 100 ? 125 : 85, pct === 100 ? 50 : 85);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`${pct}% Complete`, pageW - margin, 51, { align: 'right' });
+
+            // Divider
+            doc.setDrawColor(200, 200, 200);
+            doc.line(margin, 56, pageW - margin, 56);
+
+            // Items table
+            if (items.length > 0) {
+                const tableRows = items.map((item, idx) => [
+                    idx + 1,
+                    item.name || '',
+                    item.label || '',
+                    item.item_date ? item.item_date.split('T')[0] : '—',
+                    item.item_time ? item.item_time.substring(0, 5) : '—',
+                    item.checked == 1 ? '✓' : '—',
+                    item.time_ok == 1 ? '✓' : '—',
+                    item.crm_ok == 1 ? '✓' : '—',
+                ]);
+
+                doc.autoTable({
+                    startY: 60,
+                    head: [['#', 'Item Name', 'Label', 'Date', 'Time', 'Done', 'Time OK', 'CRM OK']],
+                    body: tableRows,
+                    margin: { left: margin, right: margin },
+                    styles: { fontSize: 8, cellPadding: 3, font: 'helvetica', textColor: [30, 30, 30] },
+                    headStyles: { fillColor: [17, 17, 17], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+                    alternateRowStyles: { fillColor: [248, 248, 248] },
+                    columnStyles: {
+                        0: { cellWidth: 8, halign: 'center' },
+                        1: { cellWidth: 60 },
+                        2: { cellWidth: 28 },
+                        3: { cellWidth: 22 },
+                        4: { cellWidth: 14 },
+                        5: { cellWidth: 12, halign: 'center' },
+                        6: { cellWidth: 14, halign: 'center' },
+                        7: { cellWidth: 14, halign: 'center' },
+                    },
+                    didParseCell: function(data) {
+                        // Green checkmarks
+                        if ([5, 6, 7].includes(data.column.index) && data.cell.raw === '✓') {
+                            data.cell.styles.textColor = [46, 125, 50];
+                            data.cell.styles.fontStyle = 'bold';
+                        }
+                    }
+                });
+            } else {
+                doc.setFontSize(10);
+                doc.setTextColor(150, 150, 150);
+                doc.text('No items found for this batch.', margin, 70);
+            }
+
+            // Footer
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(180, 180, 180);
+                doc.setFont('helvetica', 'normal');
+                doc.text(`Page ${i} of ${pageCount}  |  monitoring.co  |  CRM Checklist System`, margin, doc.internal.pageSize.getHeight() - 8);
+            }
+
+            // Save
+            const filename = `${batchName.replace(/[^a-zA-Z0-9 _-]/g, '').trim().replace(/ /g, '_')}_sequence.pdf`;
+            doc.save(filename);
+
+        } catch (err) {
+            alert('Failed to generate PDF: ' + err.message);
+            console.error(err);
         }
     }
 
