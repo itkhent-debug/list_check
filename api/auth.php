@@ -58,14 +58,23 @@ if (!$row4) {
     $stmt->execute();
 }
 
-// Seed khentagustin@ga.co if missing
-$chk5 = $conn->query("SELECT id FROM users WHERE email = 'khentagustin@ga.co' LIMIT 1");
-if ($chk5->num_rows == 0) {
+// Seed/Update khentagustin@ga.co with correct password (FPAI26).
+// Only run password_hash when actually needed to avoid per-request slowdown.
+$chk5 = $conn->query("SELECT id, password_hash FROM users WHERE email = 'khentagustin@ga.co' LIMIT 1");
+if ($chk5 && $chk5->num_rows == 0) {
     $p5 = password_hash('FPAI26', PASSWORD_DEFAULT);
-    $stmt = $conn->prepare("INSERT INTO users (email, name, password_hash) VALUES (?, ?, ?)");
+    $stmt = $conn->prepare("INSERT INTO users (email, name, password_hash, is_active) VALUES (?, ?, ?, 1)");
     $e5 = 'khentagustin@ga.co'; $n5 = 'Khent Agustin';
     $stmt->bind_param('sss', $e5, $n5, $p5);
     $stmt->execute();
+} else if ($chk5 && $chk5->num_rows > 0) {
+    $row5 = $chk5->fetch_assoc();
+    if (empty($row5['password_hash']) || !password_verify('FPAI26', $row5['password_hash'])) {
+        $p5 = password_hash('FPAI26', PASSWORD_DEFAULT);
+        $stmt = $conn->prepare("UPDATE users SET password_hash = ?, is_active = 1 WHERE email = 'khentagustin@ga.co'");
+        $stmt->bind_param('s', $p5);
+        $stmt->execute();
+    }
 }
 
 $method = $_SERVER['REQUEST_METHOD'];
