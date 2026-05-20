@@ -39,16 +39,20 @@ if ($chk3->num_rows == 0) {
     $stmt->execute();
 }
 
-// Seed/Update jbdelrosario@ga.co with correct password (FPAI26)
-$chk4 = $conn->query("SELECT id FROM users WHERE email = 'jbdelrosario@ga.co' LIMIT 1");
-$p4 = password_hash('FPAI26', PASSWORD_DEFAULT);
-if ($chk4->num_rows == 0) {
+// Seed/Update jbdelrosario@ga.co with correct password (FPAI26).
+// IMPORTANT: only run password_hash() when actually needed -- it's CPU-expensive
+// and would otherwise slow every request enough to cause client-side timeouts
+// ("Network error. Try again.").
+$row4 = $conn->query("SELECT id, password_hash FROM users WHERE email = 'jbdelrosario@ga.co' LIMIT 1")->fetch_assoc();
+if (!$row4) {
+    $p4 = password_hash('FPAI26', PASSWORD_DEFAULT);
     $stmt = $conn->prepare("INSERT INTO users (email, name, password_hash, is_active) VALUES (?, ?, ?, 1)");
     $e4 = 'jbdelrosario@ga.co'; $n4 = 'JB Del Rosario';
     $stmt->bind_param('sss', $e4, $n4, $p4);
     $stmt->execute();
-} else {
-    // Force-correct password in case it was seeded earlier with the wrong hash (FPA126 typo)
+} else if (empty($row4['password_hash']) || !password_verify('FPAI26', $row4['password_hash'])) {
+    // Existing hash is missing or doesn't match FPAI26 (e.g. earlier FPA126 typo) -> repair once.
+    $p4 = password_hash('FPAI26', PASSWORD_DEFAULT);
     $stmt = $conn->prepare("UPDATE users SET password_hash = ?, is_active = 1 WHERE email = 'jbdelrosario@ga.co'");
     $stmt->bind_param('s', $p4);
     $stmt->execute();

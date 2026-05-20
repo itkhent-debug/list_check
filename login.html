@@ -487,19 +487,25 @@
                     body: JSON.stringify({ email, password })
                 });
 
-                const data = await res.json();
+                // Read body as text first so we can show real server errors
+                // (HTML 500 pages, gateway timeouts, etc.) instead of the generic
+                // "Network error" that fires when res.json() throws on non-JSON.
+                const raw = await res.text();
+                let data = {};
+                try { data = raw ? JSON.parse(raw) : {}; } catch (_) { data = {}; }
 
                 if (res.ok) {
                     if (data.token) localStorage.setItem('crm_token', data.token);
                     window.location.href = 'index.html';
                 } else {
-                    errorMsg.textContent = data.error || 'Login failed';
+                    const fallback = `Server error ${res.status}` + (raw ? `: ${raw.substring(0, 140)}` : '');
+                    errorMsg.textContent = data.error || fallback;
                     errorMsg.style.display = 'block';
                     btn.disabled = false;
                     btn.innerHTML = '<span>Login</span>';
                 }
             } catch (err) {
-                errorMsg.textContent = 'Network error. Try again.';
+                errorMsg.textContent = 'Network error: ' + (err && err.message ? err.message : 'request failed') + '. Try again.';
                 errorMsg.style.display = 'block';
                 btn.disabled = false;
                 btn.innerHTML = '<span>Login</span>';
