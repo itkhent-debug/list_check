@@ -5,4 +5,4 @@ nixPkgs = ["php82", "php82Extensions.mysqli", "php82Extensions.pdo_mysql", "php8
 cmds = ["mkdir -p /app"]
 
 [start]
-cmd = "php -c php.ini -S 0.0.0.0:$PORT"
+cmd = "php -c php.ini -S 0.0.0.0:$PORT router.php"
