@@ -82,7 +82,11 @@ $action = $_GET['action'] ?? '';
 
 switch ($action) {
     case 'login':
-        if ($method !== 'POST') sendResponse(['error' => 'Method not allowed'], 405);
+        if ($method !== 'POST') {
+            sendResponse([
+                'error' => 'Method not allowed. Login requires a POST request. If you are seeing this, ensure you are accessing the site via HTTPS (https://) to avoid redirect method degradation.'
+            ], 405);
+        }
 
         $data = getJsonInput();
         $email = strtolower(trim($data['email'] ?? ''));
