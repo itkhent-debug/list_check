@@ -39,13 +39,18 @@ if ($chk3->num_rows == 0) {
     $stmt->execute();
 }
 
-// Seed jbdelrosario@ga.co if missing
+// Seed/Update jbdelrosario@ga.co with correct password (FPAI26)
 $chk4 = $conn->query("SELECT id FROM users WHERE email = 'jbdelrosario@ga.co' LIMIT 1");
+$p4 = password_hash('FPAI26', PASSWORD_DEFAULT);
 if ($chk4->num_rows == 0) {
-    $p4 = password_hash('FPA126', PASSWORD_DEFAULT);
-    $stmt = $conn->prepare("INSERT INTO users (email, name, password_hash) VALUES (?, ?, ?)");
+    $stmt = $conn->prepare("INSERT INTO users (email, name, password_hash, is_active) VALUES (?, ?, ?, 1)");
     $e4 = 'jbdelrosario@ga.co'; $n4 = 'JB Del Rosario';
     $stmt->bind_param('sss', $e4, $n4, $p4);
+    $stmt->execute();
+} else {
+    // Force-correct password in case it was seeded earlier with the wrong hash (FPA126 typo)
+    $stmt = $conn->prepare("UPDATE users SET password_hash = ?, is_active = 1 WHERE email = 'jbdelrosario@ga.co'");
+    $stmt->bind_param('s', $p4);
     $stmt->execute();
 }
 
