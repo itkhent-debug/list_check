@@ -1311,7 +1311,7 @@
             }
         }
 
-        // Canvas-based checkbox detector — samples left column pixels per row
+        // Canvas-based checkbox detector — dynamically auto-calibrates grid using blue checkbox pixel density peaks
         function detectCheckboxStatesFromCanvas(imageSrc, rowCount) {
             return new Promise((resolve) => {
                 const img = new Image();
@@ -1325,64 +1325,137 @@
                     const W = img.width;
                     const H = img.height;
 
-                    // Table area: skip top ~15% (header/toolbar) and bottom ~5%
-                    const tableTop    = Math.floor(H * 0.15);
-                    const tableBottom = Math.floor(H * 0.95);
-                    const tableHeight = tableBottom - tableTop;
-
-                    // Scan a wide checkbox column — leftmost 14% of the image
-                    // This captures checkbox even if it's not perfectly at the left edge
-                    const colLeft  = Math.floor(W * 0.01);
-                    const colRight = Math.floor(W * 0.14);
+                    // Scan the checkbox column area (leftmost 1% to 6%)
+                    const colLeft  = Math.max(0, Math.floor(W * 0.01));
+                    const colRight = Math.min(W, Math.floor(W * 0.06));
                     const colW     = colRight - colLeft;
 
-                    const rowHeight = tableHeight / rowCount;
-                    const results   = [];
+                    if (colW <= 0) {
+                        resolve(new Array(rowCount).fill(false));
+                        return;
+                    }
 
-                    const isDarkTheme = currentMode === 'activation';
+                    // 1. Calculate blue/cyan pixel density per horizontal line across the entire image height H
+                    const blueDensity = new Array(H).fill(0);
+                    for (let y = 0; y < H; y++) {
+                        const imgData = ctx.getImageData(colLeft, y, colW, 1).data;
+                        let blueCount = 0;
+                        for (let i = 0; i < imgData.length; i += 4) {
+                            const r = imgData[i];
+                            const g = imgData[i + 1];
+                            const b = imgData[i + 2];
+                            
+                            // Blue checkbox check:
+                            // Blue is dominant, bright, and saturated
+                            const isBlue = (b > r + 30) && (b > g - 20) && (b > 80) && (r < 160);
+                            if (isBlue) {
+                                blueCount++;
+                            }
+                        }
+                        blueDensity[y] = blueCount;
+                    }
 
-                    for (let r = 0; r < rowCount; r++) {
-                        // Sample the FULL height of the row in the checkbox column
-                        // Skip 5% padding top/bottom per row to avoid border lines
-                        const rowTop = tableTop + rowHeight * r;
-                        const sy = Math.max(0, Math.floor(rowTop + rowHeight * 0.1));
-                        const sh = Math.max(1, Math.floor(rowHeight * 0.8));
-                        const sx = Math.max(0, colLeft);
-                        const sw = Math.min(colW, W - sx);
+                    // 2. Identify vertical clusters (peaks) corresponding to the checked checkboxes
+                    const peaks = [];
+                    let inPeak = false;
+                    let peakYSum = 0;
+                    let peakWeight = 0;
+                    let consecutiveZeros = 0;
 
-                        if (sw <= 0 || sh <= 0) { results.push(false); continue; }
-
-                        const pixelData = ctx.getImageData(sx, sy, sw, sh).data;
-                        const totalPixels = sw * sh;
-                        let coloredPixelCount = 0;
-
-                        for (let p = 0; p < pixelData.length; p += 4) {
-                            const pr = pixelData[p];
-                            const pg = pixelData[p + 1];
-                            const pb = pixelData[p + 2];
-                            const brightness = (pr + pg + pb) / 3;
-                            const maxC = Math.max(pr, pg, pb);
-                            const minC = Math.min(pr, pg, pb);
-                            const saturation = maxC > 0 ? (maxC - minC) / maxC : 0;
-
-                            if (isDarkTheme) {
-                                // Dark bg: a blue/purple checkbox pixel has decent brightness + saturation
-                                // We count ANY pixel brighter than the near-black background
-                                if (brightness > 45 && saturation > 0.10) {
-                                    coloredPixelCount++;
+                    for (let y = 0; y < H; y++) {
+                        if (blueDensity[y] > 1) {
+                            inPeak = true;
+                            peakYSum += y * blueDensity[y];
+                            peakWeight += blueDensity[y];
+                            consecutiveZeros = 0;
+                        } else {
+                            if (inPeak) {
+                                consecutiveZeros++;
+                                // End of peak after 6 consecutive black lines, or end of image
+                                if (consecutiveZeros > 6 || y === H - 1) {
+                                    if (peakWeight > 12) {
+                                        peaks.push(peakYSum / peakWeight);
+                                    }
+                                    inPeak = false;
+                                    peakYSum = 0;
+                                    peakWeight = 0;
+                                    consecutiveZeros = 0;
                                 }
-                            } else {
-                                // Light bg: checked box has distinctly colored (non-white) fill
-                                if (saturation > 0.18 && brightness < 225) {
-                                    coloredPixelCount++;
+                            }
+                        }
+                    }
+
+                    console.log("Detected Checked Checkbox Y-Centers:", peaks);
+
+                    const results = new Array(rowCount).fill(false);
+
+                    // 3. Grid Fit: Find best rowHeight (A) and tableTop (B) that aligns the peaks
+                    if (peaks.length >= 2) {
+                        const expectedIndices = currentMode === 'activation'
+                            ? [0, 1, 2, 3, 4, 8, 12, 16] // Checked indices in the 17-row Activation scan template
+                            : [0, 1, 2, 3, 4, 5, 6];     // Checked indices in the 7-row Reminder template
+
+                        let bestA = H / rowCount;
+                        let bestB = bestA / 2;
+                        let minError = Infinity;
+
+                        // Range to search for rowHeight (allow +/- 18% variance)
+                        const startA = (H / rowCount) * 0.82;
+                        const endA   = (H / rowCount) * 1.18;
+
+                        for (let A = startA; A <= endA; A += 0.2) {
+                            // Search table offset from -rowHeight up to +2*rowHeight
+                            const startB = -A;
+                            const endB   = A * 2;
+                            for (let B = startB; B <= endB; B += 0.5) {
+                                let totalError = 0;
+                                peaks.forEach(peakY => {
+                                    // Find closest expected index
+                                    let closestIdx = expectedIndices[0];
+                                    let closestDist = Infinity;
+                                    expectedIndices.forEach(idx => {
+                                        const dist = Math.abs((A * idx + B) - peakY);
+                                        if (dist < closestDist) {
+                                            closestDist = dist;
+                                            closestIdx = idx;
+                                        }
+                                    });
+                                    totalError += closestDist * closestDist;
+                                });
+
+                                if (totalError < minError) {
+                                    minError = totalError;
+                                    bestA = A;
+                                    bestB = B;
                                 }
                             }
                         }
 
-                        // Mark as checked if colored pixels make up > 0.8% of the sampled region
-                        // (a 20x20 checkbox on a 200px wide strip would be ~1%)
-                        const colorRatio = coloredPixelCount / totalPixels;
-                        results.push(colorRatio > 0.008);
+                        const rowHeight = bestA;
+                        const tableTop  = bestB;
+                        console.log(`Auto-calibration: rowHeight=${rowHeight.toFixed(2)}, tableTop=${tableTop.toFixed(2)}, error=${minError.toFixed(2)}`);
+
+                        // 4. Mark checked rows that align with a detected checkbox peak
+                        for (let r = 0; r < rowCount; r++) {
+                            const expectedY = rowHeight * r + tableTop;
+                            // Match if a peak center is close to the expected center of row r
+                            const hasPeak = peaks.some(peakY => Math.abs(peakY - expectedY) < rowHeight * 0.4);
+                            results[r] = hasPeak;
+                        }
+                    } else {
+                        // Fallback: simple uniform division if no peaks were detected
+                        console.log("Auto-calibration fallback activated (insufficient peaks).");
+                        const rowHeight = H / rowCount;
+                        for (let r = 0; r < rowCount; r++) {
+                            const expectedY = rowHeight * r + rowHeight / 2;
+                            let blueCount = 0;
+                            const startY = Math.max(0, Math.floor(expectedY - rowHeight * 0.35));
+                            const endY   = Math.min(H - 1, Math.ceil(expectedY + rowHeight * 0.35));
+                            for (let y = startY; y < endY; y++) {
+                                blueCount += blueDensity[y];
+                            }
+                            results[r] = blueCount > 15;
+                        }
                     }
 
                     resolve(results);
