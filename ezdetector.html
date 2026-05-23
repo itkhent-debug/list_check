@@ -1425,10 +1425,12 @@
                     });
                 }
 
-                tableData = baseTemplate;
+                // Only keep CHECKED rows — unchecked ones are excluded so they won't be deleted
+                const checkedCount = checkedStates ? checkedStates.filter(Boolean).length : baseTemplate.filter(r => r.checked).length;
+                tableData = baseTemplate.filter(row => row.checked);
 
                 await new Promise(r => setTimeout(r, 300));
-                updateScanStatus("Scan complete!", `Detected ${checkedStates ? checkedStates.filter(Boolean).length : '?'} checked rows`);
+                updateScanStatus("Scan complete!", `Detected ${checkedCount} checked rows — ${baseTemplate.length - checkedCount} unchecked rows excluded`);
 
                 setTimeout(() => {
                     showTableResults();
@@ -1466,11 +1468,14 @@
             }, 600);
 
             setTimeout(() => {
+                let fullData;
                 if (currentMode === 'activation') {
-                    tableData = JSON.parse(JSON.stringify(activationTemplateData));
+                    fullData = JSON.parse(JSON.stringify(activationTemplateData));
                 } else {
-                    tableData = JSON.parse(JSON.stringify(reminderTemplateData));
+                    fullData = JSON.parse(JSON.stringify(reminderTemplateData));
                 }
+                // Only keep checked rows — exclude unchecked so they won't be affected by sync
+                tableData = fullData.filter(row => row.checked);
                 showTableResults();
             }, 1200);
         }
@@ -1515,6 +1520,7 @@
                         <th style="width: 180px;">Communication Label</th>
                         <th style="width: 130px;">Date</th>
                         <th style="width: 120px;">Time</th>
+                        <th style="width: 120px;">Gap Interval</th>
                         <th style="width: 80px;" class="td-center">Action</th>
                     </tr>
                 `;
@@ -1641,7 +1647,7 @@
             if (tableData.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="${currentMode === 'activation' ? 6 : 9}" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                        <td colspan="${currentMode === 'activation' ? 7 : 9}" style="text-align: center; color: var(--text-muted); padding: 30px;">
                             No rows detected. Click 'Add Row' to insert data manually.
                         </td>
                     </tr>
@@ -1679,6 +1685,7 @@
                         <td>
                             <input type="text" class="table-input" value="${row.time}" onchange="updateCell(${index}, 'time', this.value)">
                         </td>
+                        <td class="gap-display">${row.gap || '—'}</td>
                         <td class="td-center">
                             <button class="btn-trash" onclick="deleteRow(${index})" title="Delete row">
                                 <svg viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
