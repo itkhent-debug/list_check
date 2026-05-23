@@ -146,9 +146,20 @@ function getConnection() {
         )");
 
         // Add new columns to activity_logs if they don't exist yet (safe migration)
-        @$conn->query("ALTER TABLE activity_logs ADD COLUMN severity VARCHAR(20) DEFAULT 'info'");
-        @$conn->query("ALTER TABLE activity_logs ADD COLUMN page_url VARCHAR(500) DEFAULT ''");
-        @$conn->query("ALTER TABLE activity_logs ADD COLUMN ip_address VARCHAR(60) DEFAULT ''");
+        $cols = [];
+        $res = $conn->query("SHOW COLUMNS FROM activity_logs");
+        while ($row = $res->fetch_assoc()) {
+            $cols[] = $row['Field'];
+        }
+        if (!in_array('severity', $cols)) {
+            $conn->query("ALTER TABLE activity_logs ADD COLUMN severity VARCHAR(20) DEFAULT 'info'");
+        }
+        if (!in_array('page_url', $cols)) {
+            $conn->query("ALTER TABLE activity_logs ADD COLUMN page_url VARCHAR(500) DEFAULT ''");
+        }
+        if (!in_array('ip_address', $cols)) {
+            $conn->query("ALTER TABLE activity_logs ADD COLUMN ip_address VARCHAR(60) DEFAULT ''");
+        }
 
         $conn->query("CREATE TABLE IF NOT EXISTS api_logs (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -165,11 +176,26 @@ function getConnection() {
         )");
 
         // Add new columns to api_logs if they don't exist yet (safe migration)
-        @$conn->query("ALTER TABLE api_logs ADD COLUMN user_email VARCHAR(255) DEFAULT ''");
-        @$conn->query("ALTER TABLE api_logs ADD COLUMN ip_address VARCHAR(60) DEFAULT ''");
-        @$conn->query("ALTER TABLE api_logs ADD COLUMN request_data TEXT DEFAULT NULL");
-        @$conn->query("ALTER TABLE api_logs ADD COLUMN is_suspicious TINYINT(1) DEFAULT 0");
-        @$conn->query("ALTER TABLE api_logs ADD COLUMN suspicious_reason VARCHAR(500) DEFAULT ''");
+        $colsApi = [];
+        $resApi = $conn->query("SHOW COLUMNS FROM api_logs");
+        while ($row = $resApi->fetch_assoc()) {
+            $colsApi[] = $row['Field'];
+        }
+        if (!in_array('user_email', $colsApi)) {
+            $conn->query("ALTER TABLE api_logs ADD COLUMN user_email VARCHAR(255) DEFAULT ''");
+        }
+        if (!in_array('ip_address', $colsApi)) {
+            $conn->query("ALTER TABLE api_logs ADD COLUMN ip_address VARCHAR(60) DEFAULT ''");
+        }
+        if (!in_array('request_data', $colsApi)) {
+            $conn->query("ALTER TABLE api_logs ADD COLUMN request_data TEXT DEFAULT NULL");
+        }
+        if (!in_array('is_suspicious', $colsApi)) {
+            $conn->query("ALTER TABLE api_logs ADD COLUMN is_suspicious TINYINT(1) DEFAULT 0");
+        }
+        if (!in_array('suspicious_reason', $colsApi)) {
+            $conn->query("ALTER TABLE api_logs ADD COLUMN suspicious_reason VARCHAR(500) DEFAULT ''");
+        }
 
         // System change tracking tables
         $conn->query("CREATE TABLE IF NOT EXISTS system_files_state (
