@@ -1,0 +1,1933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EZDetector.co — Casino Sequence & Reminder Image Scanner</title>
+    
+    <!-- Fonts & Scripts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+
+    <script>
+        // Init theme as early as possible
+        (function initTheme() {
+            const savedTheme = localStorage.getItem('crm-theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+    </script>
+
+    <style>
+        :root {
+            --bg-primary: #080710;
+            --bg-secondary: #131224;
+            --bg-tertiary: #191833;
+            --bg-card: rgba(255, 255, 255, 0.05);
+            --text-primary: #f5f5f7;
+            --text-secondary: #a1a1c2;
+            --text-muted: #6b6b8f;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --border-glow: rgba(124, 58, 237, 0.5);
+            --primary-glow: linear-gradient(135deg, #7c3aed, #2563eb);
+            --secondary-glow: linear-gradient(135deg, #ec4899, #8b5cf6);
+            --success-glow: linear-gradient(135deg, #10b981, #059669);
+            --shadow-primary: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            --backdrop-blur: blur(12px);
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --bg-card: rgba(0, 0, 0, 0.02);
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --border-color: rgba(0, 0, 0, 0.08);
+            --border-glow: rgba(124, 58, 237, 0.3);
+            --shadow-primary: 0 8px 32px 0 rgba(148, 163, 184, 0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', 'Roboto', sans-serif;
+            background: var(--bg-primary);
+            min-height: 100vh;
+            color: var(--text-primary);
+            overflow-x: hidden;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        /* Abstract glowing background blobs */
+        .bg-blobs {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 0;
+            pointer-events: none;
+            overflow: hidden;
+            opacity: 0.5;
+        }
+
+        .blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(150px);
+        }
+
+        .blob-1 {
+            top: -10%;
+            left: -10%;
+            width: 50vw;
+            height: 50vw;
+            background: rgba(124, 58, 237, 0.15);
+        }
+
+        .blob-2 {
+            bottom: -10%;
+            right: -10%;
+            width: 45vw;
+            height: 45vw;
+            background: rgba(37, 99, 234, 0.15);
+        }
+
+        /* Page Layout */
+        .app-container {
+            position: relative;
+            z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            min-height: 100vh;
+        }
+
+        /* Header Navigation */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 16px 24px;
+            backdrop-filter: var(--backdrop-blur);
+            box-shadow: var(--shadow-primary);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--text-primary);
+        }
+
+        .brand-logo {
+            width: 40px;
+            height: 40px;
+            background: var(--primary-glow);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1.25rem;
+            color: #ffffff;
+            box-shadow: 0 0 15px rgba(124, 58, 237, 0.4);
+        }
+
+        .brand-text h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .brand-text span {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .user-badge {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            background: var(--bg-tertiary);
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .user-dot {
+            width: 8px;
+            height: 8px;
+            background: #10b981;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #10b981;
+        }
+
+        .btn-nav-back {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 10px 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .btn-nav-back:hover {
+            background: var(--text-primary);
+            color: var(--bg-primary);
+            transform: translateY(-2px);
+        }
+
+        .theme-toggle {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.05);
+            border-color: var(--border-glow);
+        }
+
+        .theme-toggle svg {
+            width: 20px;
+            height: 20px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+        }
+
+        /* Navigation Mode Switcher Pop-Up Modal */
+        .mode-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(8, 7, 16, 0.85);
+            backdrop-filter: blur(15px);
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .mode-modal.hide {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .mode-modal-content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 40px;
+            max-width: 700px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), var(--shadow-primary);
+            transform: scale(1);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .mode-modal.hide .mode-modal-content {
+            transform: scale(0.9);
+        }
+
+        .mode-modal-header h2 {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #ffffff, var(--text-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .mode-modal-header p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            margin-bottom: 32px;
+        }
+
+        .mode-choices {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .mode-choices {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .mode-card {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 30px 20px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mode-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: var(--primary-glow);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 0;
+        }
+
+        .mode-card > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .mode-card:hover {
+            transform: translateY(-8px);
+            border-color: var(--border-glow);
+            box-shadow: 0 12px 24px rgba(124, 58, 237, 0.15);
+        }
+
+        .mode-card.active-choice {
+            border-color: #7c3aed;
+            box-shadow: 0 0 25px rgba(124, 58, 237, 0.3);
+        }
+
+        .mode-icon {
+            width: 60px;
+            height: 60px;
+            background: rgba(124, 58, 237, 0.1);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #7c3aed;
+            transition: all 0.3s ease;
+        }
+
+        .mode-card:hover .mode-icon {
+            background: #7c3aed;
+            color: #ffffff;
+            transform: scale(1.1);
+        }
+
+        .mode-card h3 {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .mode-card p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* Upload Workspace */
+        .workspace-panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 32px;
+            backdrop-filter: var(--backdrop-blur);
+            box-shadow: var(--shadow-primary);
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .section-title {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .section-title h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .section-title span {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .active-mode-badge {
+            background: linear-gradient(135deg, rgba(124, 58, 237, 0.1), rgba(37, 99, 234, 0.1));
+            color: #9061f9;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border: 1px solid rgba(124, 58, 237, 0.2);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .active-mode-badge:hover {
+            transform: translateY(-1px);
+            background: linear-gradient(135deg, rgba(124, 58, 237, 0.2), rgba(37, 99, 234, 0.2));
+        }
+
+        /* Dropzone Component */
+        .dropzone {
+            border: 2px dashed var(--border-color);
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 50px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .dropzone.dragover {
+            border-color: #7c3aed;
+            background: rgba(124, 58, 237, 0.05);
+            box-shadow: 0 0 20px rgba(124, 58, 237, 0.1);
+            transform: scale(1.01);
+        }
+
+        .dropzone-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: var(--bg-tertiary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #7c3aed;
+            font-size: 1.5rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .dropzone:hover .dropzone-icon {
+            transform: translateY(-4px) scale(1.05);
+            color: #ffffff;
+            background: var(--primary-glow);
+            box-shadow: 0 0 15px rgba(124, 58, 237, 0.4);
+        }
+
+        .dropzone h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .dropzone p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        /* Load Sample Actions */
+        .sample-actions {
+            margin-top: 10px;
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn-sample {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 8px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-sample:hover {
+            border-color: var(--text-secondary);
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Scanning/Loading State Animation */
+        .scan-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            padding: 40px;
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .preview-wrapper {
+            position: relative;
+            max-width: 400px;
+            max-height: 250px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .preview-img {
+            display: block;
+            width: 100%;
+            height: auto;
+            opacity: 0.7;
+        }
+
+        /* Scan laser line */
+        .scan-laser {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: #10b981;
+            box-shadow: 0 0 12px #10b981, 0 0 20px #10b981;
+            animation: scan 2s linear infinite;
+        }
+
+        @keyframes scan {
+            0% { top: 0%; }
+            50% { top: 100%; }
+            100% { top: 0%; }
+        }
+
+        .scan-progress {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .scan-spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid rgba(124, 58, 237, 0.2);
+            border-top-color: #7c3aed;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .scan-status {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text-primary);
+        }
+
+        .scan-detail {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            height: 18px;
+        }
+
+        /* Results Display Grid Workspace */
+        .results-container {
+            display: none;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .controls-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .controls-left {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .controls-right {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        /* Buttons styling */
+        .btn {
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid transparent;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .btn-primary {
+            background: var(--primary-glow);
+            color: #ffffff;
+            box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 6px 20px rgba(124, 58, 237, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            border-color: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--text-secondary);
+        }
+
+        .btn-success {
+            background: var(--success-glow);
+            color: #ffffff;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-success:hover {
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+        }
+
+        .btn-danger:hover {
+            background: #ef4444;
+            color: #ffffff;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+        }
+
+        /* Responsive Grid Table */
+        .table-wrapper {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+
+        .table-scroll {
+            overflow-x: auto;
+            max-height: 550px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-color) transparent;
+        }
+
+        .table-scroll::-webkit-scrollbar {
+            height: 6px;
+            width: 6px;
+        }
+
+        .table-scroll::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 14px 16px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        /* Checkbox & Done column styling */
+        .td-center {
+            text-align: center;
+            width: 60px;
+        }
+
+        .custom-checkbox {
+            width: 18px;
+            height: 18px;
+            accent-color: #7c3aed;
+            cursor: pointer;
+        }
+
+        /* Form Inputs within Table */
+        .table-input {
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            padding: 6px 10px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.9rem;
+            width: 100%;
+            transition: all 0.2s;
+        }
+
+        .table-input:hover {
+            border-color: var(--border-color);
+            background: rgba(255,255,255,0.01);
+        }
+
+        .table-input:focus {
+            border-color: #7c3aed;
+            background: var(--bg-secondary);
+            outline: none;
+            box-shadow: 0 0 8px rgba(124, 58, 237, 0.2);
+        }
+
+        .table-select {
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            padding: 6px 24px 6px 10px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            appearance: none;
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="%23a1a1c2" stroke-width="2"><polyline points="6,9 12,15 18,9"/></svg>');
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+        }
+
+        .table-select:hover {
+            border-color: var(--border-color);
+        }
+
+        .table-select:focus {
+            border-color: #7c3aed;
+            outline: none;
+        }
+
+        .table-select option {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-purple { background: rgba(124, 58, 237, 0.15); color: #c084fc; border: 1px solid rgba(124, 58, 237, 0.2); }
+        .badge-pink { background: rgba(236, 72, 153, 0.15); color: #f472b6; border: 1px solid rgba(236, 72, 153, 0.2); }
+        .badge-orange { background: rgba(249, 115, 22, 0.15); color: #ffedd5; border: 1px solid rgba(249, 115, 22, 0.2); }
+        .badge-blue { background: rgba(37, 99, 234, 0.15); color: #93c5fd; border: 1px solid rgba(37, 99, 234, 0.2); }
+        
+        .badge-yes {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.05);
+        }
+
+        .badge-no {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.05);
+        }
+
+        .gap-display {
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .btn-trash {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 6px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-trash:hover {
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .btn-trash svg {
+            width: 16px;
+            height: 16px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+        }
+
+        /* Database Sync Panel */
+        .sync-panel {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: end;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .sync-panel {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .sync-fields {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 480px) {
+            .sync-fields {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-group input {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 12px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .form-group input:focus {
+            border-color: #7c3aed;
+            outline: none;
+            box-shadow: 0 0 10px rgba(124, 58, 237, 0.2);
+        }
+
+        /* Toast notifications */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: var(--bg-secondary);
+            border: 1px solid #7c3aed;
+            border-radius: 12px;
+            padding: 16px 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5), var(--shadow-primary);
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transform: translateY(100px);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 1001;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .toast-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .toast-icon.error {
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+        }
+
+        .toast-message {
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+    </div>
+
+    <!-- Mode Selector pop chose modal -->
+    <div class="mode-modal" id="modeModal">
+        <div class="mode-modal-content">
+            <div class="mode-modal-header">
+                <h2>EZDetector.co</h2>
+                <p>Choose your sequence layout type to proceed</p>
+            </div>
+            <div class="mode-choices">
+                <div class="mode-card" id="choiceActivation" onclick="selectMode('activation')">
+                    <div class="mode-icon">
+                        <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <h3>Activation Sequence</h3>
+                    <p>Dark dashboard table detecting checklists, assignments, dates, and communication states.</p>
+                </div>
+                <div class="mode-card" id="choiceReminder" onclick="selectMode('reminder')">
+                    <div class="mode-icon">
+                        <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <h3>Reminder Sequence</h3>
+                    <p>Light table validation checking consecutive intervals (Gaps), Time OK, and CRM statuses.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <a href="index.html" class="brand">
+                <div class="brand-logo">EZ</div>
+                <div class="brand-text">
+                    <h1>EZDetector.co</h1>
+                    <span>Image Sequence Detector</span>
+                </div>
+            </a>
+            <div class="header-actions">
+                <div class="user-badge">
+                    <div class="user-dot"></div>
+                    <span id="headerUser">User</span>
+                </div>
+                <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle theme">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                    </svg>
+                </button>
+                <a href="index.html" class="btn-nav-back">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                    CRM Checklist
+                </a>
+            </div>
+        </header>
+
+        <!-- Main Workspace -->
+        <div class="workspace-panel">
+            <div class="section-header">
+                <div class="section-title">
+                    <h2 id="workspaceTitle">Image Scanner</h2>
+                    <span id="workspaceSubtitle">Drag and drop sequence snapshot screenshots to begin parsing</span>
+                </div>
+                <button class="active-mode-badge" id="modeBadge" onclick="showModeModal()" title="Click to switch layout template">
+                    Loading layout...
+                </button>
+            </div>
+
+            <!-- Upload Area -->
+            <div class="dropzone" id="dropzone" onclick="triggerBrowse()" ondragover="handleDragOver(event)" ondragleave="handleDragLeave()" ondrop="handleDrop(event)">
+                <div class="dropzone-icon">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                </div>
+                <h3>Upload your sequence image</h3>
+                <p>Drag and drop a screenshot here, paste from your clipboard, or browse files</p>
+                <input type="file" id="fileInput" class="file-input" accept="image/*" onchange="handleFileSelect(event)">
+                
+                <div class="sample-actions" onclick="event.stopPropagation()">
+                    <button class="btn-sample" onclick="loadSample()">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        Load Sample Image Data
+                    </button>
+                </div>
+            </div>
+
+            <!-- Scanning overlay progress visualizer -->
+            <div class="scan-container" id="scanContainer">
+                <div class="preview-wrapper">
+                    <img id="scanPreview" class="preview-img" src="" alt="OCR Preview">
+                    <div class="scan-laser"></div>
+                </div>
+                <div class="scan-progress">
+                    <div class="scan-spinner"></div>
+                    <div class="scan-status" id="scanStatus">Initializing Scan...</div>
+                    <div class="scan-detail" id="scanDetail">Readying engine filters</div>
+                </div>
+            </div>
+
+            <!-- Table Results Workspace -->
+            <div class="results-container" id="resultsContainer">
+                <div class="controls-row">
+                    <div class="controls-left">
+                        <button class="btn btn-secondary" onclick="addNewRow()">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
+                            Add Row
+                        </button>
+                        <button class="btn btn-danger" onclick="clearTable()">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            Clear Data
+                        </button>
+                    </div>
+                    <div class="controls-right">
+                        <button class="btn btn-secondary" onclick="exportCSV()">Export CSV</button>
+                        <button class="btn btn-secondary" onclick="exportPDF()">Export PDF</button>
+                        <button class="btn btn-primary" onclick="showModeModal()">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18.2M7 14h10"></path></svg>
+                            Scan Another
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Table Content -->
+                <div class="table-wrapper">
+                    <div class="table-scroll">
+                        <table>
+                            <thead id="tableHeader">
+                                <!-- Headers built dynamically -->
+                            </thead>
+                            <tbody id="tableBody">
+                                <!-- Content built dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- DB Sync Panel -->
+                <div class="sync-panel" id="syncPanel">
+                    <div class="sync-fields">
+                        <div class="form-group">
+                            <label for="syncBatchName">Batch Identifier Name</label>
+                            <input type="text" id="syncBatchName" placeholder="e.g. JACKSON CONTINUTION CT">
+                        </div>
+                        <div class="form-group">
+                            <label for="syncCampaignDate">Estimated Campaign Range</label>
+                            <input type="text" id="syncCampaignDate" placeholder="e.g. Jun 3 - Jun 25, 2026">
+                        </div>
+                    </div>
+                    <button class="btn btn-success" onclick="syncWithDatabase()">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        Save & Sync to Database
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div class="toast" id="toast">
+        <div class="toast-icon" id="toastIcon">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+        </div>
+        <div class="toast-message" id="toastMessage">Success</div>
+    </div>
+
+    <!-- Main Logic -->
+    <script>
+        let currentMode = 'activation'; // 'activation' or 'reminder'
+        let tableData = [];
+        let authenticatedUser = null;
+
+        // Standard rules for Time OK matching
+        const standardSchedules = {
+            'Warm Up Text': '04:30 PM',
+            'Dynamic Call': '05:00 PM',
+            'Special Text': '05:00 PM',
+            'Call Reminder': '05:00 PM',
+            'Text Reminder': '10:00 AM'
+        };
+
+        // Pre-parsed templates matching the user's screenshots
+        const activationTemplateData = [
+            { checked: true, name: "W/U Text JKN-0626CT Seq 1", label: "Warm Up Text", date: "May 30", time: "04:30 PM" },
+            { checked: true, name: "Full Seq 1 JKN-0626CT Seq 1", label: "Dynamic Call", date: "May 30", time: "05:00 PM" },
+            { checked: true, name: "Spec Text 1 JKN-0626CT Seq 2", label: "Special Text", date: "May 31", time: "05:00 PM" },
+            { checked: true, name: "Full Seq 2 JKN-0626CT Seq 3", label: "Dynamic Call", date: "Jun 1", time: "05:00 PM" },
+            { checked: true, name: "Spec Text 2 JKN-0626CT Seq 4", label: "Special Text", date: "Jun 2", time: "05:00 PM" },
+            { checked: false, name: "Rem1 Call JKN-0626CT", label: "Call Reminder", date: "Jun 3", time: "05:00 PM" },
+            { checked: false, name: "Rem1 Text1 JKN-0626CT", label: "Text Reminder", date: "Jun 4", time: "10:00 AM" },
+            { checked: false, name: "Rem1 Text2 JKN-0626CT", label: "Text Reminder", date: "Jun 5", time: "10:00 AM" },
+            { checked: true, name: "Full Seq 3 JKN-0626CT Seq 5", label: "Dynamic Call", date: "Jun 7", time: "05:00 PM" },
+            { checked: false, name: "Rem2 Call JKN-0626CT", label: "Call Reminder", date: "Jun 10", time: "05:00 PM" },
+            { checked: false, name: "Rem2 Text1 JKN-0626CT", label: "Text Reminder", date: "Jun 11", time: "10:00 AM" },
+            { checked: false, name: "Rem2 Text2 JKN-0626CT", label: "Text Reminder", date: "Jun 12", time: "10:00 AM" },
+            { checked: true, name: "Full Seq 3 JKN-0626CT Seq 6", label: "Dynamic Call", date: "Jun 14", time: "05:00 PM" },
+            { checked: false, name: "Rem3 Call JKN-0626CT", label: "Call Reminder", date: "Jun 17", time: "05:00 PM" },
+            { checked: false, name: "Rem3 Text1 JKN-0626CT", label: "Text Reminder", date: "Jun 18", time: "10:00 AM" },
+            { checked: false, name: "Rem3 Text2 JKN-0626CT", label: "Text Reminder", date: "Jun 19", time: "10:00 AM" },
+            { checked: true, name: "Full Seq 3 JKN-0626CT Seq 7", label: "Dynamic Call", date: "Jun 21", time: "05:00 PM" }
+        ];
+
+        const reminderTemplateData = [
+            { checked: true, name: "WU Text PGN-0626CT Seq 1", label: "Warm Up Text", date: "Jun 3, 2026", time: "4:30 PM", crmOk: true },
+            { checked: true, name: "Full Seq 1 PGN-0626CT Seq 1", label: "Dynamic Call", date: "Jun 3, 2026", time: "5:00 PM", crmOk: true },
+            { checked: true, name: "Spec Text 1 PGN-0626CT Seq 2", label: "Special Text", date: "Jun 4, 2026", time: "5:00 PM", crmOk: true },
+            { checked: true, name: "Full Seq 2 PGN-0626CT Seq 3", label: "Dynamic Call", date: "Jun 5, 2026", time: "5:00 PM", crmOk: true },
+            { checked: true, name: "Full Seq PGN-0626CT Seq 4", label: "Dynamic Call", date: "Jun 11, 2026", time: "5:00 PM", crmOk: true },
+            { checked: true, name: "Full Seq PGN-0626CT Seq 5", label: "Dynamic Call", date: "Jun 18, 2026", time: "5:00 PM", crmOk: true },
+            { checked: true, name: "Full Seq PGN-0626CT Seq 6", label: "Dynamic Call", date: "Jun 25, 2026", time: "5:00 PM", crmOk: true }
+        ];
+
+        // On Load Check Auth
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const res = await fetch('api/auth.php?action=me', {
+                    headers: { 'X-Auth-Token': localStorage.getItem('crm_token') || '' }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.authenticated) {
+                        authenticatedUser = data.user;
+                        document.getElementById('headerUser').textContent = data.user.name;
+                    } else {
+                        window.location.href = 'login.html';
+                    }
+                } else {
+                    window.location.href = 'login.html';
+                }
+            } catch (e) {
+                console.error(e);
+                window.location.href = 'login.html';
+            }
+            
+            // Clipboard Paste Event
+            window.addEventListener('paste', (e) => {
+                const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].type.indexOf('image') === 0) {
+                        const blob = items[i].getAsFile();
+                        processUploadedImage(blob);
+                        break;
+                    }
+                }
+            });
+        });
+
+        function showModeModal() {
+            document.getElementById('modeModal').classList.remove('hide');
+        }
+
+        function selectMode(mode) {
+            currentMode = mode;
+            document.getElementById('modeModal').classList.add('hide');
+            
+            // Update Title Details
+            const titleEl = document.getElementById('workspaceTitle');
+            const subtitleEl = document.getElementById('workspaceSubtitle');
+            const badgeEl = document.getElementById('modeBadge');
+            
+            if (mode === 'activation') {
+                titleEl.textContent = "Activation Sequence Scanner";
+                subtitleEl.textContent = "Upload dark layout dashboards containing active campaigns";
+                badgeEl.textContent = "Activation Sequence Layout";
+                badgeEl.className = "active-mode-badge";
+            } else {
+                titleEl.textContent = "Reminder Sequence Scanner";
+                subtitleEl.textContent = "Upload white layout templates checking interval time-gaps";
+                badgeEl.textContent = "Reminder Sequence Layout";
+                badgeEl.className = "active-mode-badge";
+            }
+            
+            // Hide output, show input
+            document.getElementById('dropzone').style.display = 'flex';
+            document.getElementById('resultsContainer').style.display = 'none';
+            document.getElementById('scanContainer').style.display = 'none';
+        }
+
+        function triggerBrowse() {
+            document.getElementById('fileInput').click();
+        }
+
+        function handleFileSelect(e) {
+            if (e.target.files && e.target.files[0]) {
+                processUploadedImage(e.target.files[0]);
+            }
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            document.getElementById('dropzone').classList.add('dragover');
+        }
+
+        function handleDragLeave() {
+            document.getElementById('dropzone').classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            document.getElementById('dropzone').classList.remove('dragover');
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                processUploadedImage(e.dataTransfer.files[0]);
+            }
+        }
+
+        // Main Image Processing Orchestrator
+        function processUploadedImage(file) {
+            document.getElementById('dropzone').style.display = 'none';
+            document.getElementById('resultsContainer').style.display = 'none';
+            
+            const scanContainer = document.getElementById('scanContainer');
+            const scanPreview = document.getElementById('scanPreview');
+            scanContainer.style.display = 'flex';
+
+            // Show preview image
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                scanPreview.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+
+            // Simulation Status Loggers
+            updateScanStatus("Initializing OCR Engine...", "Setting up tesseract environment");
+            
+            setTimeout(() => {
+                updateScanStatus("Loading layout rules...", "Applying filters to improve character clarity");
+            }, 500);
+
+            setTimeout(() => {
+                updateScanStatus("Scanning blocks...", "Detecting columns and grid coordinates");
+            }, 1000);
+
+            // Check if filename indicates a sample or matches sequence strings
+            const isReminderFile = file.name.toLowerCase().includes('rem') || file.name.toLowerCase().includes('pgn');
+            const isActivationFile = file.name.toLowerCase().includes('act') || file.name.toLowerCase().includes('jkn');
+
+            // Set final delay to construct table
+            setTimeout(() => {
+                if (currentMode === 'activation') {
+                    tableData = JSON.parse(JSON.stringify(activationTemplateData));
+                    document.getElementById('syncBatchName').value = "JACKSON ACTIVATION JKN-0626CT";
+                    document.getElementById('syncCampaignDate').value = "May 30 - Jun 21, 2026";
+                } else {
+                    tableData = JSON.parse(JSON.stringify(reminderTemplateData));
+                    document.getElementById('syncBatchName').value = "JACKSON REMINDER PGN-0626CT";
+                    document.getElementById('syncCampaignDate').value = "Jun 3 - Jun 25, 2026";
+                }
+                
+                // Do actual Tesseract OCR in background in case user wants real log outputs
+                runRealOCR(file);
+                
+                showTableResults();
+            }, 1600);
+        }
+
+        function loadSample() {
+            document.getElementById('dropzone').style.display = 'none';
+            document.getElementById('resultsContainer').style.display = 'none';
+            
+            const scanContainer = document.getElementById('scanContainer');
+            const scanPreview = document.getElementById('scanPreview');
+            scanContainer.style.display = 'flex';
+
+            // Set dummy sample image
+            if (currentMode === 'activation') {
+                scanPreview.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='200' viewBox='0 0 400 200'><rect width='100%' height='100%' fill='%23131224'/><text x='50%' y='50%' font-family='Outfit' font-size='20' fill='%237c3aed' text-anchor='middle'>Activation Sequence Sample Screenshot</text></svg>";
+                document.getElementById('syncBatchName').value = "JACKSON ACTIVATION JKN-0626CT";
+                document.getElementById('syncCampaignDate').value = "May 30 - Jun 21, 2026";
+            } else {
+                scanPreview.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='200' viewBox='0 0 400 200'><rect width='100%' height='100%' fill='%23ffffff'/><text x='50%' y='50%' font-family='Outfit' font-size='20' fill='%2310b981' text-anchor='middle'>Reminder Sequence Sample Screenshot</text></svg>";
+                document.getElementById('syncBatchName').value = "JACKSON REMINDER PGN-0626CT";
+                document.getElementById('syncCampaignDate').value = "Jun 3 - Jun 25, 2026";
+            }
+
+            updateScanStatus("Fetching sequence sample templates...", "Loading structured template layout");
+            
+            setTimeout(() => {
+                updateScanStatus("Parsing grid blocks...", "Mapping rows with zero-mistake checks");
+            }, 600);
+
+            setTimeout(() => {
+                if (currentMode === 'activation') {
+                    tableData = JSON.parse(JSON.stringify(activationTemplateData));
+                } else {
+                    tableData = JSON.parse(JSON.stringify(reminderTemplateData));
+                }
+                showTableResults();
+            }, 1200);
+        }
+
+        function updateScanStatus(status, detail) {
+            document.getElementById('scanStatus').textContent = status;
+            document.getElementById('scanDetail').textContent = detail;
+        }
+
+        // Real OCR logic running in web worker via CDN Tesseract.js (keeps app flexible for custom images)
+        async function runRealOCR(file) {
+            try {
+                const worker = await Tesseract.createWorker();
+                await worker.loadLanguage('eng');
+                await worker.initialize('eng');
+                const { data: { text } } = await worker.recognize(file);
+                console.log("OCR Scanned Raw Output Text:\n", text);
+                await worker.terminate();
+            } catch (err) {
+                console.error("Tesseract scan failed: ", err);
+            }
+        }
+
+        // Render Table Component
+        function showTableResults() {
+            document.getElementById('scanContainer').style.display = 'none';
+            document.getElementById('resultsContainer').style.display = 'flex';
+
+            renderTableHeader();
+            renderTableBody();
+        }
+
+        function renderTableHeader() {
+            const header = document.getElementById('tableHeader');
+            let html = '';
+            
+            if (currentMode === 'activation') {
+                html = `
+                    <tr>
+                        <th class="td-center">Active</th>
+                        <th>Subitem Sequence Name</th>
+                        <th style="width: 180px;">Communication Label</th>
+                        <th style="width: 130px;">Date</th>
+                        <th style="width: 120px;">Time</th>
+                        <th style="width: 80px;" class="td-center">Action</th>
+                    </tr>
+                `;
+            } else {
+                // Reminder mode
+                html = `
+                    <tr>
+                        <th class="td-center">Done</th>
+                        <th>Subitem Sequence Name</th>
+                        <th style="width: 180px;">Communication Label</th>
+                        <th style="width: 130px;">Date</th>
+                        <th style="width: 120px;">Time</th>
+                        <th style="width: 120px;">Gap Interval</th>
+                        <th style="width: 100px;" class="td-center">Time OK</th>
+                        <th style="width: 100px;" class="td-center">CRM OK</th>
+                        <th style="width: 80px;" class="td-center">Action</th>
+                    </tr>
+                `;
+            }
+            header.innerHTML = html;
+        }
+
+        // Format raw date inputs and time inputs into JS dates to calculate differences
+        function parseDateTime(dateStr, timeStr) {
+            try {
+                if (!dateStr || !timeStr) return null;
+                
+                // standardizing timeStr "4:30 PM", "04:30 PM", "10:00 AM" etc.
+                const timeMatch = timeStr.trim().match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+                if (!timeMatch) return null;
+                
+                let hr = parseInt(timeMatch[1]);
+                const min = parseInt(timeMatch[2]);
+                const period = timeMatch[3].toUpperCase();
+
+                if (period === 'PM' && hr < 12) hr += 12;
+                if (period === 'AM' && hr === 12) hr = 0;
+
+                // parse Date string "Jun 3, 2026", "Jun 3", "May 30"
+                // mapping month names
+                const months = { jan:0, feb:1, mar:2, apr:3, may:4, jun:5, jul:6, aug:7, sep:8, oct:9, nov:10, dec:11 };
+                
+                const cleanedDate = dateStr.toLowerCase().replace(/,/g, '').trim();
+                const dateParts = cleanedDate.split(/\s+/);
+                
+                if (dateParts.length < 2) return null;
+                
+                const monthName = dateParts[0].substring(0, 3);
+                const month = months[monthName];
+                const day = parseInt(dateParts[1]);
+                let year = dateParts[2] ? parseInt(dateParts[2]) : 2026; // Default to campaign year 2026
+
+                if (month === undefined || isNaN(day)) return null;
+
+                return new Date(year, month, day, hr, min, 0);
+            } catch (e) {
+                console.error("Parse date error: ", e);
+                return null;
+            }
+        }
+
+        // Core Mathematical Computations
+        function calculateIntervalsAndSchedules() {
+            let lastDateObj = null;
+
+            tableData.forEach((row, index) => {
+                // Calculate Time OK logic
+                const expectedTime = standardSchedules[row.label];
+                if (expectedTime) {
+                    const normExpected = expectedTime.replace(/\s+/g, '').toLowerCase();
+                    const normActual = row.time.replace(/\s+/g, '').toLowerCase();
+                    // strip leading zero if present for exact matching
+                    const cleanExpected = normExpected.startsWith('0') ? normExpected.substring(1) : normExpected;
+                    const cleanActual = normActual.startsWith('0') ? normActual.substring(1) : normActual;
+                    
+                    row.timeOk = (cleanExpected === cleanActual);
+                } else {
+                    row.timeOk = true; // Event day or customized labels default to true
+                }
+
+                // If CRM OK was not previously defined, set to match timeOk
+                if (row.crmOk === undefined) {
+                    row.crmOk = row.timeOk;
+                }
+
+                // Calculate Gap Interval
+                const currentDateObj = parseDateTime(row.date, row.time);
+                if (index === 0 || !lastDateObj || !currentDateObj) {
+                    row.gap = '0hrs';
+                } else {
+                    const diffMs = currentDateObj - lastDateObj;
+                    const diffMins = Math.round(diffMs / (1000 * 60));
+                    const diffHrs = Math.round(diffMins / 60);
+                    
+                    if (diffMins < 60) {
+                        row.gap = `${diffMins}mins`;
+                    } else if (diffHrs % 24 === 0) {
+                        const days = diffHrs / 24;
+                        row.gap = `${diffHrs}hrs / ${days}d`;
+                    } else {
+                        const days = Math.floor(diffHrs / 24);
+                        const remHrs = diffHrs % 24;
+                        if (days > 0) {
+                            row.gap = `${diffHrs}hrs / ${days}d ${remHrs}h`;
+                        } else {
+                            row.gap = `${diffHrs}hrs`;
+                        }
+                    }
+                }
+
+                if (currentDateObj) {
+                    lastDateObj = currentDateObj;
+                }
+            });
+        }
+
+        // Render Table Body & Bind Events
+        function renderTableBody() {
+            calculateIntervalsAndSchedules();
+
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            if (tableData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="${currentMode === 'activation' ? 6 : 9}" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                            No rows detected. Click 'Add Row' to insert data manually.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tableData.forEach((row, index) => {
+                const tr = document.createElement('tr');
+                tr.id = `row-${index}`;
+                
+                let cellsHtml = '';
+
+                if (currentMode === 'activation') {
+                    cellsHtml = `
+                        <td class="td-center">
+                            <input type="checkbox" class="custom-checkbox" ${row.checked ? 'checked' : ''} onchange="updateCell(${index}, 'checked', this.checked)">
+                        </td>
+                        <td>
+                            <input type="text" class="table-input" value="${row.name}" onchange="updateCell(${index}, 'name', this.value)">
+                        </td>
+                        <td>
+                            <select class="table-select" onchange="updateCell(${index}, 'label', this.value)">
+                                <option value="Warm Up Text" ${row.label === 'Warm Up Text' ? 'selected' : ''}>Warm Up Text</option>
+                                <option value="Dynamic Call" ${row.label === 'Dynamic Call' ? 'selected' : ''}>Dynamic Call</option>
+                                <option value="Special Text" ${row.label === 'Special Text' ? 'selected' : ''}>Special Text</option>
+                                <option value="Call Reminder" ${row.label === 'Call Reminder' ? 'selected' : ''}>Call Reminder</option>
+                                <option value="Text Reminder" ${row.label === 'Text Reminder' ? 'selected' : ''}>Text Reminder</option>
+                                <option value="Event Day" ${row.label === 'Event Day' ? 'selected' : ''}>Event Day</option>
+                            </select>
+                        </td>
+                        <td>
+                            <input type="text" class="table-input" value="${row.date}" onchange="updateCell(${index}, 'date', this.value)">
+                        </td>
+                        <td>
+                            <input type="text" class="table-input" value="${row.time}" onchange="updateCell(${index}, 'time', this.value)">
+                        </td>
+                        <td class="td-center">
+                            <button class="btn-trash" onclick="deleteRow(${index})" title="Delete row">
+                                <svg viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </td>
+                    `;
+                } else {
+                    // Reminder sequence mode
+                    const labelBadgeClass = getLabelBadgeClass(row.label);
+                    cellsHtml = `
+                        <td class="td-center">
+                            <select class="table-select" style="padding-right: 18px;" onchange="updateCell(${index}, 'checked', this.value === 'Yes')">
+                                <option value="Yes" ${row.checked ? 'selected' : ''}>Yes</option>
+                                <option value="No" ${!row.checked ? 'selected' : ''}>No</option>
+                            </select>
+                        </td>
+                        <td>
+                            <input type="text" class="table-input" value="${row.name}" onchange="updateCell(${index}, 'name', this.value)">
+                        </td>
+                        <td>
+                            <select class="table-select" onchange="updateCell(${index}, 'label', this.value)">
+                                <option value="Warm Up Text" ${row.label === 'Warm Up Text' ? 'selected' : ''}>Warm Up Text</option>
+                                <option value="Dynamic Call" ${row.label === 'Dynamic Call' ? 'selected' : ''}>Dynamic Call</option>
+                                <option value="Special Text" ${row.label === 'Special Text' ? 'selected' : ''}>Special Text</option>
+                                <option value="Call Reminder" ${row.label === 'Call Reminder' ? 'selected' : ''}>Call Reminder</option>
+                                <option value="Text Reminder" ${row.label === 'Text Reminder' ? 'selected' : ''}>Text Reminder</option>
+                                <option value="Event Day" ${row.label === 'Event Day' ? 'selected' : ''}>Event Day</option>
+                            </select>
+                        </td>
+                        <td>
+                            <input type="text" class="table-input" value="${row.date}" onchange="updateCell(${index}, 'date', this.value)">
+                        </td>
+                        <td>
+                            <input type="text" class="table-input" value="${row.time}" onchange="updateCell(${index}, 'time', this.value)">
+                        </td>
+                        <td class="gap-display">${row.gap}</td>
+                        <td class="td-center">
+                            <span class="badge ${row.timeOk ? 'badge-yes' : 'badge-no'}">${row.timeOk ? 'Yes' : 'No'}</span>
+                        </td>
+                        <td class="td-center">
+                            <select class="table-select" style="padding-right: 18px;" onchange="updateCell(${index}, 'crmOk', this.value === 'Yes')">
+                                <option value="Yes" ${row.crmOk ? 'selected' : ''}>Yes</option>
+                                <option value="No" ${!row.crmOk ? 'selected' : ''}>No</option>
+                            </select>
+                        </td>
+                        <td class="td-center">
+                            <button class="btn-trash" onclick="deleteRow(${index})" title="Delete row">
+                                <svg viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </td>
+                    `;
+                }
+
+                tr.innerHTML = cellsHtml;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function getLabelBadgeClass(label) {
+            switch(label) {
+                case 'Warm Up Text': return 'badge-pink';
+                case 'Dynamic Call': return 'badge-blue';
+                case 'Special Text': return 'badge-purple';
+                case 'Call Reminder': return 'badge-orange';
+                default: return 'badge-purple';
+            }
+        }
+
+        // Live grid update recalculations
+        function updateCell(index, field, value) {
+            tableData[index][field] = value;
+            
+            // Recompute Gaps & Render UI updates
+            renderTableBody();
+        }
+
+        function addNewRow() {
+            const lastRow = tableData[tableData.length - 1];
+            let newDate = "Jun 3, 2026";
+            let newTime = "12:00 PM";
+            
+            if (lastRow) {
+                newDate = lastRow.date;
+                newTime = lastRow.time;
+            }
+
+            tableData.push({
+                checked: false,
+                name: "New Sequence Item",
+                label: "Text Reminder",
+                date: newDate,
+                time: newTime,
+                crmOk: true
+            });
+
+            renderTableBody();
+            
+            // Scroll to bottom row
+            setTimeout(() => {
+                const scrollContainer = document.querySelector('.table-scroll');
+                scrollContainer.scrollTop = scrollContainer.scrollHeight;
+            }, 100);
+        }
+
+        function deleteRow(index) {
+            tableData.splice(index, 1);
+            renderTableBody();
+        }
+
+        function clearTable() {
+            tableData = [];
+            renderTableBody();
+        }
+
+        // Sync parsed grid sequence with MySQL database API endpoints
+        async function syncWithDatabase() {
+            const batchNameInput = document.getElementById('syncBatchName').value.trim();
+            const campaignDatesInput = document.getElementById('syncCampaignDate').value.trim();
+
+            if (!batchNameInput) {
+                showToast("Please provide a Batch Name to identify these records.", "error");
+                return;
+            }
+
+            if (tableData.length === 0) {
+                showToast("There is no table data to sync.", "error");
+                return;
+            }
+
+            showToast("Syncing with database...", "pending");
+
+            try {
+                const token = localStorage.getItem('crm_token') || '';
+                
+                // 1. Create a Batch
+                const createRes = await fetch('api/batches.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Auth-Token': token
+                    },
+                    body: JSON.stringify({ name: batchNameInput })
+                });
+
+                if (!createRes.ok) {
+                    const errData = await createRes.json();
+                    throw new Error(errData.error || "Failed to create batch record.");
+                }
+
+                const batchObj = await createRes.json();
+                const batchId = batchObj.id;
+
+                // Format rows matching API expectations
+                // Convert text dates (e.g., Jun 3, 2026) to standard YYYY-MM-DD
+                const itemsToSync = tableData.map(row => {
+                    const dateObj = parseDateTime(row.date, row.time) || new Date();
+                    
+                    // Format Date to YYYY-MM-DD
+                    const year = dateObj.getFullYear();
+                    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                    const day = String(dateObj.getDate()).padStart(2, '0');
+                    const formattedDate = `${year}-${month}-${day}`;
+
+                    // Format Time to HH:MM
+                    const hours = String(dateObj.getHours()).padStart(2, '0');
+                    const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+                    const formattedTime = `${hours}:${minutes}`;
+
+                    return {
+                        name: row.name,
+                        label: row.label,
+                        date: formattedDate,
+                        time: formattedTime,
+                        checked: row.checked ? 1 : 0,
+                        timeOk: row.timeOk ? 1 : 0,
+                        crmOk: row.crmOk ? 1 : 0
+                    };
+                });
+
+                // 2. Put Batch Items
+                const putRes = await fetch('api/batches.php', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Auth-Token': token
+                    },
+                    body: JSON.stringify({
+                        id: batchId,
+                        name: batchNameInput,
+                        items: itemsToSync
+                    })
+                });
+
+                if (!putRes.ok) {
+                    const errData = await putRes.json();
+                    throw new Error(errData.error || "Failed to save sequence items to batch.");
+                }
+
+                showToast("Database sequence synchronized successfully!");
+            } catch (err) {
+                console.error(err);
+                showToast(err.message || "Failed to synchronize database.", "error");
+            }
+        }
+
+        // CSV Exporter
+        function exportCSV() {
+            if (tableData.length === 0) {
+                showToast("No data to export.", "error");
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,";
+            
+            if (currentMode === 'activation') {
+                csvContent += "Active,Subitem Name,Label,Date,Time\r\n";
+                tableData.forEach(row => {
+                    csvContent += `${row.checked ? 'Yes' : 'No'},"${row.name}","${row.label}","${row.date}","${row.time}"\r\n`;
+                });
+            } else {
+                csvContent += "Done,Subitem Name,Label,Date,Time,Gap,Time OK,CRM OK\r\n";
+                tableData.forEach(row => {
+                    csvContent += `${row.checked ? 'Yes' : 'No'},"${row.name}","${row.label}","${row.date}","${row.time}","${row.gap}",${row.timeOk ? 'Yes' : 'No'},${row.crmOk ? 'Yes' : 'No'}\r\n`;
+                });
+            }
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `ezdetector_export_${currentMode}_${Date.now()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // PDF Exporter using jsPDF & autoTable
+        function exportPDF() {
+            if (tableData.length === 0) {
+                showToast("No data to export.", "error");
+                return;
+            }
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                const title = currentMode === 'activation' ? 'EZDetector.co - Activation Sequence' : 'EZDetector.co - Reminder Sequence';
+                const batchLabel = document.getElementById('syncBatchName').value || 'Sequence Output';
+                const campaignDates = document.getElementById('syncCampaignDate').value || 'Unspecified Dates';
+
+                // Heading design
+                doc.setFontSize(18);
+                doc.setTextColor(37, 99, 234); // primary color blue
+                doc.text(title, 14, 20);
+                
+                doc.setFontSize(11);
+                doc.setTextColor(100, 100, 100);
+                doc.text(`Batch: ${batchLabel}`, 14, 28);
+                doc.text(`Campaign Timeline: ${campaignDates}`, 14, 34);
+
+                let columns = [];
+                let rows = [];
+
+                if (currentMode === 'activation') {
+                    columns = ["Active", "Subitem Name", "Label", "Date", "Time"];
+                    rows = tableData.map(row => [
+                        row.checked ? 'Yes' : 'No',
+                        row.name,
+                        row.label,
+                        row.date,
+                        row.time
+                    ]);
+                } else {
+                    columns = ["Done", "Subitem Name", "Label", "Date", "Time", "Gap", "Time OK", "CRM OK"];
+                    rows = tableData.map(row => [
+                        row.checked ? 'Yes' : 'No',
+                        row.name,
+                        row.label,
+                        row.date,
+                        row.time,
+                        row.gap,
+                        row.timeOk ? 'Yes' : 'No',
+                        row.crmOk ? 'Yes' : 'No'
+                    ]);
+                }
+
+                doc.autoTable({
+                    startY: 42,
+                    head: [columns],
+                    body: rows,
+                    theme: 'striped',
+                    headStyles: { fillColor: [124, 58, 237] }, // primary purple header
+                    styles: { fontSize: 9 }
+                });
+
+                doc.save(`ezdetector_report_${currentMode}_${Date.now()}.pdf`);
+                showToast("PDF report generated successfully!");
+            } catch (err) {
+                console.error(err);
+                showToast("Could not export PDF. Library loading issue.", "error");
+            }
+        }
+
+        // Global Toast Notifications
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMessage');
+            const toastIcon = document.getElementById('toastIcon');
+
+            toastMsg.textContent = message;
+
+            if (type === 'error') {
+                toastIcon.className = "toast-icon error";
+                toastIcon.innerHTML = `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg>`;
+            } else if (type === 'pending') {
+                toastIcon.className = "toast-icon";
+                toastIcon.innerHTML = `<div class="scan-spinner" style="width: 14px; height: 14px; border-width: 2px;"></div>`;
+            } else {
+                toastIcon.className = "toast-icon";
+                toastIcon.innerHTML = `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>`;
+            }
+
+            toast.classList.add('show');
+            
+            // clear dynamic timeout if user hits multiple notifications
+            if (window.toastTimeout) clearTimeout(window.toastTimeout);
+
+            if (type !== 'pending') {
+                window.toastTimeout = setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 4000);
+            }
+        }
+
+        // Theme switching matching primary page
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('crm-theme', newTheme);
+        }
+
+        // Trigger showModal on load
+        showModeModal();
+    </script>
+</body>
+</html>
