@@ -1397,7 +1397,7 @@
         }
 
         // ═══════════════════════════════════════════════════════════════════
-        // CHECKBOX DETECTOR — v4.1 (Full-Search, Multi-Color)
+        // CHECKBOX DETECTOR — v5.0 (Variance-Profile Grid Search)
         // ═══════════════════════════════════════════════════════════════════
         function detectCheckboxStatesFromCanvas(imageSrc, rowCount) {
             return new Promise((resolve) => {
@@ -1413,87 +1413,80 @@
                     const H = img.height;
                     const fullData = ctx.getImageData(0, 0, W, H).data;
 
-                    // ── Checkbox pixel tests ──────────────────────────────────────────
-                    // Support multiple checkbox colors across different casino UIs.
-                    function isCheckedPixel(r, g, b) {
-                        // Blue (most common checked checkbox)
-                        const isBlue  = b > 120 && b > r + 50 && r < 150;
-                        // Cyan (some UIs use teal/cyan checkboxes)
-                        const isCyan  = b > 100 && g > 100 && Math.abs(g - b) < 30 && b > r + 45 && r < 120;
-                        // Green (some casinos use green checkboxes)
-                        const isGreen = g > 130 && g > r + 40 && g > b + 10 && r < 130;
-                        return isBlue || isCyan || isGreen;
-                    }
+                    // ── Pixel helpers ─────────────────────────────────────────────────
+                    function lum(r, g, b) { return 0.299 * r + 0.587 * g + 0.114 * b; }
 
-                    // A more permissive "any marked pixel" detector for grid search
-                    function anyMarkedPixel(r, g, b) {
-                        // Checked: colored (blue/cyan/green)
-                        if (isCheckedPixel(r, g, b)) return true;
-                        // Unchecked but has visible checkbox outline: look for a white/gray
-                        // outline on dark bg — high contrast relative to surroundings.
-                        return false;
-                    }
+                    // ── STEP 1: Per-row variance profile (full image width) ───────────
+                    // Rows with content (text, checkboxes) have high pixel-value variance;
+                    // empty/separator rows have low variance.  The grid search uses this
+                    // profile to find the regular row structure — works regardless of
+                    // checkbox color because ANY on-screen content contributes.
+                    const SAMPLE_STEP = Math.max(2, Math.floor(W / 50));
+                    const rowVar = new Array(H);
+                    const rowBright = new Array(H);
 
-                    // ── STEP 1: Build narrow-band row activity for grid search ────────
-                    // Use a NARROW left strip (1%–6%) to avoid picking up non-checkbox UI.
-                    const NARROW_L = Math.floor(W * 0.008);
-                    const NARROW_R = Math.min(W - 1, Math.floor(W * 0.07));
-                    const WIDE_R   = Math.min(W - 1, Math.floor(W * 0.20));
-
-                    // rowAct[y] = count of checked-pixels in narrow band
-                    const rowAct = new Float32Array(H);
                     for (let y = 0; y < H; y++) {
-                        let c = 0;
-                        for (let x = NARROW_L; x <= NARROW_R; x++) {
+                        let sum = 0, sum2 = 0, n = 0;
+                        for (let x = SAMPLE_STEP; x < W - SAMPLE_STEP; x += SAMPLE_STEP) {
                             const i = (y * W + x) * 4;
-                            if (isCheckedPixel(fullData[i], fullData[i+1], fullData[i+2])) c++;
+                            const L = lum(fullData[i], fullData[i+1], fullData[i+2]);
+                            sum += L; sum2 += L * L; n++;
                         }
-                        rowAct[y] = c;
+                        const mean = n > 0 ? sum / n : 0;
+                        rowBright[y] = mean;
+                        rowVar[y] = n > 0 ? Math.sqrt(Math.max(0, sum2 / n - mean * mean)) : 0;
                     }
 
-                    // ── STEP 2: Full-range grid search ────────────────────────────────
-                    // Search ALL possible starting positions, not just within rowH of top.
+                    // ── STEP 2: Grid search using variance profile ────────────────────
+                    // Find the (rowHeight, tableTop) that maximises the sum of rowVar
+                    // at row-center bands.  Content rows (high var) → peaks at correct
+                    // alignment.
                     const expectedH = H / rowCount;
-                    const minH = Math.max(10, expectedH * 0.55);
-                    const maxH = Math.min(H * 0.90, expectedH * 1.45);
-                    const STEP = 0.75;
+                    const minH = Math.max(8, expectedH * 0.55);
+                    const maxH = Math.min(H * 0.85, expectedH * 1.45);
 
-                    let bestScore = -Infinity;
-                    let bestRowH = expectedH;
-                    let bestTop = 0;
+                    // Build integral image of rowVar for fast queries
+                    const intVar = new Array(H + 1);
+                    intVar[0] = 0;
+                    for (let y = 0; y < H; y++) intVar[y + 1] = intVar[y] + rowVar[y];
 
-                    // Integral image for fast sums
-                    const intAct = new Float64Array(H + 1);
-                    for (let y = 0; y < H; y++) intAct[y + 1] = intAct[y] + rowAct[y];
-
-                    function sumAct(y0, y1) {
+                    function sumVar(y0, y1) {
                         const a = Math.max(0, Math.floor(y0));
                         const b = Math.min(H, Math.ceil(y1));
                         if (a >= b) return 0;
-                        return intAct[b] - intAct[a];
+                        return intVar[b] - intVar[a];
                     }
 
-                    for (let rowH = minH; rowH <= maxH; rowH += STEP) {
-                        // Search FULL range: table can start anywhere in the image
-                        const maxTop = Math.max(0, H - rowH * rowCount);
-                        for (let top = 0; top <= maxTop; top += STEP) {
-                            let score = 0;
-                            const bandHalf = rowH * 0.30;
+                    // Coarse search first, then refine
+                    const COARSE_STEP = 2.0;
+                    const FINE_STEP   = 0.5;
 
-                            // Score = sum of rowAct at each row-center band, MINUS
-                            // a penalty for bands that fall outside the image
-                            for (let r = 0; r < rowCount; r++) {
-                                const cy = top + rowH * r + rowH / 2;
-                                const y0 = cy - bandHalf;
-                                const y1 = cy + bandHalf;
-                                if (y0 >= 0 && y1 < H) {
-                                    score += sumAct(y0, y1);
+                    let bestScore = -1;
+                    let bestRowH = expectedH;
+                    let bestTop = 0;
+
+                    for (let pass = 0; pass < 2; pass++) {
+                        const step = pass === 0 ? COARSE_STEP : FINE_STEP;
+                        const loH = pass === 0 ? minH : Math.max(minH, bestRowH - COARSE_STEP);
+                        const hiH = pass === 0 ? maxH : Math.min(maxH, bestRowH + COARSE_STEP);
+
+                        for (let rowH = loH; rowH <= hiH; rowH += step) {
+                            const maxTop = Math.max(0, Math.floor(H - rowH * rowCount));
+                            const topStep = Math.max(step, Math.min(4, rowH * 0.1));
+                            for (let top = 0; top <= maxTop; top += topStep) {
+                                const bandHalf = rowH * 0.28;
+                                let score = 0;
+                                for (let r = 0; r < rowCount; r++) {
+                                    const cy = top + rowH * r + rowH / 2;
+                                    const y0 = cy - bandHalf;
+                                    const y1 = cy + bandHalf;
+                                    if (y0 >= 0 && y1 < H) score += sumVar(y0, y1);
                                 }
-                            }
-                            if (score > bestScore) {
-                                bestScore = score;
-                                bestRowH = rowH;
-                                bestTop = top;
+                                if (score > bestScore) {
+                                    bestScore = score;
+                                    bestRowH = rowH;
+                                    bestTop = top;
+                                }
                             }
                         }
                     }
@@ -1511,151 +1504,165 @@
                         rowCenters[r] = (t + b) / 2;
                     }
 
-                    console.log(`[EZDetector v4.1] Grid: rowH=${rowH.toFixed(1)}, top=${tableTop.toFixed(1)}, score=${bestScore.toFixed(1)}`);
+                    console.log(`[EZDetector v5] Grid: rowH=${rowH.toFixed(1)}, top=${tableTop.toFixed(1)}, score=${bestScore.toFixed(1)}`);
 
-                    // Early exit: if score is too low, no colored checkboxes found
-                    if (bestScore < rowCount) {
-                        ctx.drawImage(img, 0, 0, W, H);
-                        document.getElementById('scanPreview').src = canvas.toDataURL();
-                        resolve({
-                            results: new Array(rowCount).fill(false),
-                            rowTops, rowBots, rowCenters, separators: []
-                        });
-                        return;
+                    // ── STEP 3: Refine each row center locally ────────────────────────
+                    // Within ±6px of each estimated center, pick the y with the highest
+                    // local variance — content peaks at row centers.
+                    const SEARCH_R = Math.max(2, Math.min(6, Math.floor(rowH / 6)));
+                    const BAND_H = Math.max(2, rowH * 0.25);
+
+                    for (let r = 0; r < rowCount; r++) {
+                        let bestCy = rowCenters[r];
+                        let bestVar = -1;
+                        for (let dy = -SEARCH_R; dy <= SEARCH_R; dy++) {
+                            const cy = rowCenters[r] + dy;
+                            if (cy < BAND_H || cy >= H - BAND_H) continue;
+                            const v = sumVar(cy - BAND_H, cy + BAND_H);
+                            if (v > bestVar) { bestVar = v; bestCy = cy; }
+                        }
+                        const delta = bestCy - rowCenters[r];
+                        rowCenters[r] = bestCy;
+                        rowTops[r]    += delta;
+                        rowBots[r]    += delta;
                     }
 
-                    // ── STEP 3: Find the checkbox column ──────────────────────────────
-                    // Scan each x in the left 20%, compute per-row pixel counts at the
-                    // refined row centers.  The best column maximises:
-                    //   (max - min) × (mean pixel count)
-                    // This prefers columns where some rows are bright and others dim.
-                    const MAX_COL = Math.floor(W * 0.20);
-                    const band = Math.max(2, rowH * 0.30);
+                    // ── STEP 4: Find checkbox column ──────────────────────────────────
+                    // For each x in left 25%, compute per-row "checked pixel" count and
+                    // score by (max-min) * mean with bonus near left edge.
+                    function isCheckedPixel(r, g, b) {
+                        const isBlue  = b > 115 && b > r + 45 && r < 155;
+                        const isCyan  = b > 95  && g > 95  && Math.abs(g - b) < 35 && b > r + 40 && r < 130;
+                        const isGreen = g > 125 && g > r + 35 && g > b + 8 && r < 135;
+                        return isBlue || isCyan || isGreen;
+                    }
 
-                    // Build column profiles
-                    const colProfiles = [];
-                    for (let x = 0; x <= MAX_COL; x++) {
-                        const perRow = new Float64Array(rowCount);
+                    const MAX_COL = Math.min(W - 1, Math.floor(W * 0.25));
+                    const band = Math.max(2, rowH * 0.28);
+                    const halfW = Math.max(5, Math.floor(W * 0.018));
+
+                    // Quick column scan: sample every 2px for speed
+                    let bestColX = 0;
+                    let bestColScore = -1;
+
+                    for (let x = 0; x <= MAX_COL; x += 2) {
+                        const vals = [];
                         for (let r = 0; r < rowCount; r++) {
                             const cy = rowCenters[r];
                             const sy = Math.max(0, Math.floor(cy - band));
-                            const ey = Math.min(H - 1, Math.ceil(cy + band));
+                            const ey = Math.min(H, Math.ceil(cy + band));
                             let cnt = 0;
-                            for (let y = sy; y <= ey; y++) {
-                                const idx = (y * W + x) * 4;
-                                if (isCheckedPixel(fullData[idx], fullData[idx+1], fullData[idx+2])) cnt++;
+                            for (let y = sy; y < ey; y++) {
+                                const i = (y * W + x) * 4;
+                                if (isCheckedPixel(fullData[i], fullData[i+1], fullData[i+2])) cnt++;
                             }
-                            perRow[r] = cnt;
+                            vals.push(cnt);
                         }
-                        colProfiles.push(perRow);
-                    }
-
-                    // Score each column using multiple criteria
-                    let bestColX = 0;
-                    let bestColScore = -1;
-                    const HALF_W = Math.max(5, Math.floor(W * 0.018));
-
-                    for (let x = 0; x <= MAX_COL; x++) {
-                        const vals = colProfiles[x];
                         const sorted = [...vals].sort((a, b) => a - b);
                         const maxV = sorted[sorted.length - 1];
                         const minV = sorted[0];
                         const range = maxV - minV;
-                        const mean = sorted.reduce((a, c) => a + c, 0) / sorted.length;
-
-                        // Separation score: how well this column separates checked from unchecked
-                        const sepScore = range > 0 ? range * mean : 0;
-
-                        // Distance bonus: prefer columns near 2–5% of image width
+                        const sum = sorted.reduce((a, c) => a + c, 0);
+                        const mean = sum / rowCount;
                         const xFrac = x / W;
-                        const distWeight = xFrac >= 0.01 && xFrac <= 0.07 ? 1.5
-                                        : xFrac <= 0.12 ? 1.0
-                                        : 0.5;
 
-                        const score = sepScore * distWeight;
+                        // Score: range * mean, weighted by proximity to 2-6% zone
+                        const distW = xFrac < 0.02 ? 0.7 + xFrac * 15
+                                   : xFrac <= 0.06 ? 1.0
+                                   : xFrac <= 0.12 ? 0.8
+                                   : 0.4;
+                        const score = range * mean * distW;
                         if (score > bestColScore) {
                             bestColScore = score;
                             bestColX = x;
                         }
                     }
 
-                    // Column confidence: if best is too low, use a reasonable default
                     let colLeft, colRight;
-                    if (bestColScore >= 1) {
-                        colLeft  = Math.max(0, bestColX - HALF_W);
-                        colRight = Math.min(W - 1, bestColX + HALF_W);
+                    if (bestColScore >= 2) {
+                        // Fine-scan around the best column
+                        const fineStart = Math.max(0, bestColX - 4);
+                        const fineEnd   = Math.min(MAX_COL, bestColX + 4);
+                        let fineBestX = bestColX;
+                        let fineBestScore = bestColScore;
+                        for (let x = fineStart; x <= fineEnd; x++) {
+                            let cnt = 0;
+                            for (let r = 0; r < rowCount; r++) {
+                                const cy = rowCenters[r];
+                                const sy = Math.max(0, Math.floor(cy - band));
+                                const ey = Math.min(H, Math.ceil(cy + band));
+                                for (let y = sy; y < ey; y++) {
+                                    const i = (y * W + x) * 4;
+                                    if (isCheckedPixel(fullData[i], fullData[i+1], fullData[i+2])) cnt++;
+                                }
+                            }
+                            if (cnt > fineBestScore) { fineBestScore = cnt; fineBestX = x; }
+                        }
+                        colLeft  = Math.max(0, fineBestX - halfW);
+                        colRight = Math.min(W - 1, fineBestX + halfW);
                     } else {
-                        // Fallback: typical checkbox zone
                         colLeft  = Math.floor(W * 0.015);
                         colRight = Math.floor(W * 0.065);
                     }
 
-                    console.log(`[EZDetector v4.1] Column: x=${colLeft}-${colRight} bestX=${bestColX} score=${bestColScore.toFixed(2)}`);
+                    console.log(`[EZDetector v5] Col: x=${colLeft}-${colRight} peak=${bestColX} score=${bestColScore.toFixed(2)}`);
 
-                    // ── STEP 4: Count pixels per row ──────────────────────────────────
-                    const rowCounts = new Float64Array(rowCount);
+                    // ── STEP 5: Count checked pixels per row ──────────────────────────
+                    const rowCounts = new Array(rowCount);
                     for (let r = 0; r < rowCount; r++) {
                         const cy = rowCenters[r];
                         const sy = Math.max(0, Math.floor(cy - band));
-                        const ey = Math.min(H - 1, Math.ceil(cy + band));
+                        const ey = Math.min(H, Math.ceil(cy + band));
                         let cnt = 0;
-                        for (let y = sy; y <= ey; y++) {
+                        for (let y = sy; y < ey; y++) {
+                            const base = y * W;
                             for (let x = colLeft; x <= colRight; x++) {
-                                const idx = (y * W + x) * 4;
-                                if (isCheckedPixel(fullData[idx], fullData[idx+1], fullData[idx+2])) cnt++;
+                                const i = (base + x) * 4;
+                                if (isCheckedPixel(fullData[i], fullData[i+1], fullData[i+2])) cnt++;
                             }
                         }
                         rowCounts[r] = cnt;
                     }
 
-                    // ── STEP 5: Threshold ─────────────────────────────────────────────
-                    const sortedVals = [...rowCounts].sort((a, b) => a - b);
-                    const maxV = sortedVals[sortedVals.length - 1];
-                    const minV = sortedVals[0];
-                    const medV = sortedVals[Math.floor(sortedVals.length / 2)];
+                    // ── STEP 6: Adaptive threshold ────────────────────────────────────
+                    const sortedC = [...rowCounts].sort((a, b) => a - b);
+                    const maxC = sortedC[sortedC.length - 1];
+                    const minC = sortedC[0];
+                    const medC = sortedC[Math.floor(sortedC.length / 2)];
 
                     let threshold;
-                    if (maxV < 2) {
-                        threshold = maxV + 1;
+                    if (maxC < 3) {
+                        threshold = maxC + 1;
                     } else {
-                        // Iterative 2-cluster k-means
-                        let cLow = minV, cHigh = maxV;
-                        for (let iter = 0; iter < 20; iter++) {
-                            let sLow = 0, nLow = 0, sHigh = 0, nHigh = 0;
+                        // 2-means clustering
+                        let cL = minC, cH = maxC;
+                        for (let iter = 0; iter < 15; iter++) {
+                            let sL = 0, nL = 0, sH = 0, nH = 0;
                             for (const v of rowCounts) {
-                                if (Math.abs(v - cLow) <= Math.abs(v - cHigh)) {
-                                    sLow += v; nLow++;
-                                } else {
-                                    sHigh += v; nHigh++;
-                                }
+                                if (Math.abs(v - cL) <= Math.abs(v - cH)) { sL += v; nL++; }
+                                else { sH += v; nH++; }
                             }
-                            if (nLow > 0) cLow = sLow / nLow;
-                            if (nHigh > 0) cHigh = sHigh / nHigh;
-                            if (nLow === 0 || nHigh === 0) break;
-                            if (Math.abs(cLow - cHigh) < 0.5) break;
+                            if (nL > 0) cL = sL / nL;
+                            if (nH > 0) cH = sH / nH;
+                            if (nL === 0 || nH === 0) break;
                         }
 
-                        if (cLow >= cHigh) {
-                            // All values in one cluster → use median split
-                            threshold = medV > 0 ? medV : maxV * 0.5;
+                        if (cL >= cH) {
+                            threshold = Math.max(medC, maxC * 0.35);
                         } else {
-                            threshold = (cLow + cHigh) / 2;
+                            threshold = (cL + cH) / 2;
                         }
-
-                        // Guards
-                        const minThresh = Math.max(1, maxV * 0.12);
-                        const maxThresh = maxV * 0.88;
-                        threshold = Math.max(threshold, minThresh);
-                        threshold = Math.min(threshold, maxThresh);
+                        threshold = Math.max(threshold, maxC * 0.12);
+                        threshold = Math.min(threshold, maxC * 0.90);
                     }
 
                     const results = rowCounts.map(c => c >= threshold);
 
-                    console.log(`[EZDetector v4.1] Counts:`, [...rowCounts].map(v => Math.round(v)));
-                    console.log(`[EZDetector v4.1] Thresh=${threshold.toFixed(1)} max=${maxV} min=${minV} med=${medV}`);
-                    console.log(`[EZDetector v4.1] =>`, results.map((v,i) => `R${i+1}:${v?'✓':'✗'}`).join(' '));
+                    console.log(`[EZDetector v5] Counts:`, rowCounts);
+                    console.log(`[EZDetector v5] Thresh=${threshold.toFixed(1)} max=${maxC} min=${minC} med=${medC}`);
+                    console.log(`[EZDetector v5] =>`, results.map((v,i) => `R${i+1}:${v?'✓':'✗'}`).join(' '));
 
-                    // ── STEP 6: Debug overlay ─────────────────────────────────────────
+                    // ── STEP 7: Debug overlay ─────────────────────────────────────────
                     ctx.drawImage(img, 0, 0, W, H);
 
                     for (let r = 0; r < rowCount; r++) {
@@ -1689,7 +1696,7 @@
                         ctx.fillText(results[r] ? '✓' : '✗', colRight + 4, cy + fontSize * 0.35);
                         ctx.font = `${Math.max(8, fontSize - 4)}px sans-serif`;
                         ctx.fillStyle = 'rgba(255,255,255,0.6)';
-                        ctx.fillText(`${Math.round(rowCounts[r])}`, colRight + 4, cy + fontSize * 0.35 + fontSize);
+                        ctx.fillText(`${rowCounts[r]}`, colRight + 4, cy + fontSize * 0.35 + fontSize);
                     }
 
                     ctx.strokeStyle = 'rgba(124,58,237,0.3)';
