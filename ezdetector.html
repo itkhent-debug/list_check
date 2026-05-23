@@ -23,6 +23,67 @@
         })();
     </script>
 
+    <!-- ✦ Monitoring Tracker Agent ✦ -->
+    <script>
+    (function MonitoringAgent() {
+        const API = 'api/log_action.php';
+        function getUserInfo() {
+            try {
+                const raw = localStorage.getItem('crm_user') || sessionStorage.getItem('crm_user') || '{}';
+                const u = JSON.parse(raw);
+                return { email: u.email || '', name: u.name || '' };
+            } catch(e) { return { email:'', name:'' }; }
+        }
+        function send(action, detail, severity) {
+            const u = getUserInfo();
+            fetch(API, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Auth-Token': localStorage.getItem('crm_token') || '' },
+                body: JSON.stringify({ action, detail: detail || '', severity: severity || 'info',
+                    page_url: window.location.href, user_email: u.email, user_name: u.name })
+            }).catch(()=>{});
+        }
+        send('PAGE_VIEW', 'Visited: EZDetector Scanner', 'info');
+        window.addEventListener('popstate', function() {
+            send('BROWSER_BACK_FORWARD', 'Navigation: ' + window.location.href, 'info');
+        });
+        window.addEventListener('pageshow', function(e) {
+            if (e.persisted) send('BROWSER_BACK_FORWARD', 'Restored from cache: ' + window.location.href, 'info');
+        });
+        document.addEventListener('copy', function() {
+            const sel = window.getSelection ? window.getSelection().toString() : '';
+            send('CLIPBOARD_COPY', 'Copied text (' + sel.length + ' chars)', 'info');
+        });
+
+        // ── Scam keyword OCR analysis ──────────────────────────────────────────
+        // Intercepts OCR text output and scans for known scam/fraud keywords.
+        const SCAM_KEYWORDS = [
+            'verify password','verify your account','free reward','claim now','you have won',
+            'gift card','send money','wire transfer','bitcoin','crypto wallet','urgent action',
+            'account suspended','confirm identity','click here to verify','bank account details',
+            'social security','limited time offer','too good to be true','phishing','malware',
+            'ransomware','lottery','jackpot','prize claim','congratulations you have been selected'
+        ];
+        window.__checkOCRForScam = function(text) {
+            if (!text) return false;
+            const lower = text.toLowerCase();
+            const found = SCAM_KEYWORDS.filter(kw => lower.includes(kw));
+            if (found.length > 0) {
+                const detail = 'Scam keywords detected in uploaded image: ' + found.join(', ');
+                send('SCAM_IMAGE_DETECTION', detail, 'critical');
+                // Show visible warning toast if the app's showToast is available
+                if (typeof showToast === 'function') {
+                    showToast('⚠️ SECURITY ALERT: Suspicious or scam-related content detected in image!', 'error');
+                } else {
+                    alert('⚠️ SECURITY ALERT: Suspicious content detected in uploaded image.\n\nKeywords: ' + found.join(', '));
+                }
+                return true;
+            }
+            return false;
+        };
+    })();
+    </script>
+
     <style>
         :root {
             --bg-primary: #080710;
@@ -1642,6 +1703,10 @@
                 await worker.initialize('eng');
                 const { data: { text } } = await worker.recognize(file);
                 console.log("OCR Scanned Raw Output Text:\n", text);
+                // ── Scam/fraud keyword detection ─────────────────────────────
+                if (typeof window.__checkOCRForScam === 'function') {
+                    window.__checkOCRForScam(text);
+                }
                 await worker.terminate();
             } catch (err) {
                 console.error("Tesseract scan failed: ", err);

@@ -13,6 +13,27 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- ✦ Monitoring Tracker Agent ✦ -->
+    <script>
+    (function MonitoringAgent() {
+        const API = 'api/log_action.php';
+        function send(action, detail, severity) {
+            fetch(API, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Auth-Token': localStorage.getItem('crm_token') || '' },
+                body: JSON.stringify({ action, detail: detail || '', severity: severity || 'info',
+                    page_url: window.location.href, user_email: '', user_name: '' })
+            }).catch(()=>{});
+        }
+        send('PAGE_VIEW', 'Visited: Login Page', 'info');
+        window.addEventListener('popstate', function() {
+            send('BROWSER_BACK_FORWARD', 'Navigation to/from login: ' + window.location.href, 'info');
+        });
+        window.addEventListener('pageshow', function(e) {
+            if (e.persisted) send('BROWSER_BACK_FORWARD', 'Login page restored from cache', 'info');
+        });
+    })();
+    </script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 

@@ -23,6 +23,44 @@
             }
         })();
     </script>
+    <!-- ✦ Monitoring Tracker Agent ✦ -->
+    <script>
+    (function MonitoringAgent() {
+        const API = 'api/log_action.php';
+        function getUserInfo() {
+            try {
+                const raw = localStorage.getItem('crm_user') || sessionStorage.getItem('crm_user') || '{}';
+                const u = JSON.parse(raw);
+                return { email: u.email || '', name: u.name || '' };
+            } catch(e) { return { email:'', name:'' }; }
+        }
+        function send(action, detail, severity) {
+            const u = getUserInfo();
+            fetch(API, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Auth-Token': localStorage.getItem('crm_token') || '' },
+                body: JSON.stringify({ action, detail: detail || '', severity: severity || 'info',
+                    page_url: window.location.href, user_email: u.email, user_name: u.name })
+            }).catch(()=>{});
+        }
+        // Page view
+        send('PAGE_VIEW', 'Visited: ' + document.title, 'info');
+        // Back/Forward navigation
+        window.addEventListener('popstate', function(e) {
+            send('BROWSER_BACK_FORWARD', 'Navigation: ' + window.location.href, 'info');
+        });
+        window.addEventListener('pageshow', function(e) {
+            if (e.persisted) {
+                send('BROWSER_BACK_FORWARD', 'Restored from cache: ' + window.location.href, 'info');
+            }
+        });
+        // Clipboard copy
+        document.addEventListener('copy', function() {
+            const sel = window.getSelection ? window.getSelection().toString() : '';
+            send('CLIPBOARD_COPY', 'Copied text (' + sel.length + ' chars)', 'info');
+        });
+    })();
+    </script>
     <style>
         :root {
             /* Dark mode (default) */

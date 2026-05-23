@@ -135,12 +135,20 @@ function getConnection() {
             id INT AUTO_INCREMENT PRIMARY KEY,
             user_email VARCHAR(255) NOT NULL DEFAULT '',
             user_name VARCHAR(100) NOT NULL DEFAULT '',
-            action VARCHAR(50) NOT NULL,
+            action VARCHAR(80) NOT NULL,
             target_type VARCHAR(50) DEFAULT '',
             target_id INT DEFAULT NULL,
             detail TEXT,
+            severity VARCHAR(20) DEFAULT 'info',
+            page_url VARCHAR(500) DEFAULT '',
+            ip_address VARCHAR(60) DEFAULT '',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )");
+
+        // Add new columns to activity_logs if they don't exist yet (safe migration)
+        @$conn->query("ALTER TABLE activity_logs ADD COLUMN severity VARCHAR(20) DEFAULT 'info'");
+        @$conn->query("ALTER TABLE activity_logs ADD COLUMN page_url VARCHAR(500) DEFAULT ''");
+        @$conn->query("ALTER TABLE activity_logs ADD COLUMN ip_address VARCHAR(60) DEFAULT ''");
 
         $conn->query("CREATE TABLE IF NOT EXISTS api_logs (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -148,7 +156,39 @@ function getConnection() {
             path VARCHAR(255) NOT NULL,
             http_status INT NOT NULL,
             duration_ms INT NOT NULL,
+            user_email VARCHAR(255) DEFAULT '',
+            ip_address VARCHAR(60) DEFAULT '',
+            request_data TEXT DEFAULT NULL,
+            is_suspicious TINYINT(1) DEFAULT 0,
+            suspicious_reason VARCHAR(500) DEFAULT '',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )");
+
+        // Add new columns to api_logs if they don't exist yet (safe migration)
+        @$conn->query("ALTER TABLE api_logs ADD COLUMN user_email VARCHAR(255) DEFAULT ''");
+        @$conn->query("ALTER TABLE api_logs ADD COLUMN ip_address VARCHAR(60) DEFAULT ''");
+        @$conn->query("ALTER TABLE api_logs ADD COLUMN request_data TEXT DEFAULT NULL");
+        @$conn->query("ALTER TABLE api_logs ADD COLUMN is_suspicious TINYINT(1) DEFAULT 0");
+        @$conn->query("ALTER TABLE api_logs ADD COLUMN suspicious_reason VARCHAR(500) DEFAULT ''");
+
+        // System change tracking tables
+        $conn->query("CREATE TABLE IF NOT EXISTS system_files_state (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            file_path VARCHAR(500) NOT NULL UNIQUE,
+            file_hash VARCHAR(64) NOT NULL,
+            file_size INT NOT NULL,
+            last_modified INT NOT NULL,
+            recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )");
+
+        $conn->query("CREATE TABLE IF NOT EXISTS system_changes (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            change_type VARCHAR(30) NOT NULL,
+            file_path VARCHAR(500) NOT NULL,
+            description TEXT,
+            old_hash VARCHAR(64) DEFAULT NULL,
+            new_hash VARCHAR(64) DEFAULT NULL,
+            detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )");
 
         return $conn;
@@ -184,15 +224,36 @@ function requireAuth() {
 }
 
 // Log user activity
-function logActivity($conn, $user, $action, $targetType = '', $targetId = null, $detail = '') {
-    $email  = $conn->real_escape_string($user['user_email'] ?? '');
-    $name   = $conn->real_escape_string($user['user_name'] ?? '');
-    $act    = $conn->real_escape_string($action);
-    $ttype  = $conn->real_escape_string($targetType);
-    $det    = $conn->real_escape_string($detail);
-    $tid    = ($targetId !== null) ? (int)$targetId : 'NULL';
-    $conn->query("INSERT INTO activity_logs (user_email, user_name, action, target_type, target_id, detail)
-                  VALUES ('$email','$name','$act','$ttype',$tid,'$det')");
+function logActivity($conn, $user, $action, $targetType = '', $targetId = null, $detail = '', $severity = 'info', $pageUrl = '') {
+    $email   = $conn->real_escape_string($user['user_email'] ?? '');
+    $name    = $conn->real_escape_string($user['user_name'] ?? '');
+    $act     = $conn->real_escape_string($action);
+    $ttype   = $conn->real_escape_string($targetType);
+    $det     = $conn->real_escape_string($detail);
+    $sev     = $conn->real_escape_string($severity);
+    $purl    = $conn->real_escape_string(substr($pageUrl, 0, 499));
+    $ip      = $conn->real_escape_string($_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '');
+    $tid     = ($targetId !== null) ? (int)$targetId : 'NULL';
+    $conn->query("INSERT INTO activity_logs (user_email, user_name, action, target_type, target_id, detail, severity, page_url, ip_address)
+                  VALUES ('$email','$name','$act','$ttype',$tid,'$det','$sev','$purl','$ip')");
+}
+
+// Detect suspicious patterns in request data
+function detectSuspicious($data) {
+    if (empty($data)) return ['suspicious' => false, 'reason' => ''];
+    $text = is_string($data) ? $data : json_encode($data);
+    $patterns = [
+        'SQL Injection' => "/(\bSELECT\b|\bDROP\b|\bDELETE\b|\bINSERT\b|\bUPDATE\b|\bUNION\b|\bEXEC\b|\bSCRIPT\b|--|;--|\bOR\b\s+['\"]?1['\"]?\s*=\s*['\"]?1)/i",
+        'XSS Attempt'   => "/<script[\s\S]*?>[\s\S]*?<\/script>/i",
+        'Path Traversal'=> "/\.\.\//",
+        'PHP Injection' => "/<\?php/i",
+    ];
+    foreach ($patterns as $name => $pattern) {
+        if (preg_match($pattern, $text)) {
+            return ['suspicious' => true, 'reason' => $name . ' pattern detected'];
+        }
+    }
+    return ['suspicious' => false, 'reason' => ''];
 }
 
 // CORS headers
@@ -219,20 +280,60 @@ function getJsonInput() {
 // Log all API requests on shutdown
 register_shutdown_function(function() {
     $uri = $_SERVER['REQUEST_URI'] ?? '';
-    // Only log if it's an API request (and not the monitor itself polling constantly, to save DB space)
+    // Log all API requests except monitor polling (to avoid infinite loop / DB bloat)
     if (strpos($uri, 'api/') !== false && strpos($uri, 'monitor.php') === false) {
         $duration = round((microtime(true) - APP_START_TIME) * 1000);
-        $status = http_response_code() ?: 200;
-        $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-        $path = parse_url($uri, PHP_URL_PATH);
-        
+        $status   = http_response_code() ?: 200;
+        $method   = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+        $path     = parse_url($uri, PHP_URL_PATH);
+        $ip       = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '';
+
+        // Capture request body for POST/PUT
+        $rawBody = '';
+        if (in_array($method, ['POST', 'PUT', 'PATCH'])) {
+            $rawBody = file_get_contents('php://input');
+            if (strlen($rawBody) > 2000) {
+                $rawBody = substr($rawBody, 0, 2000) . '...[truncated]';
+            }
+        }
+
+        // Detect suspicious patterns
+        $suspCheck = detectSuspicious($rawBody ?: $_SERVER['QUERY_STRING'] ?? '');
+
+        // Try to resolve the authenticated user
+        $userEmail = '';
+        try {
+            $token = $_COOKIE['crm_token'] ?? ($_SERVER['HTTP_X_AUTH_TOKEN'] ?? '');
+            if (!empty($token)) {
+                $conn2 = getConnection();
+                $safeToken = $conn2->real_escape_string($token);
+                $uRes = $conn2->query("SELECT user_email FROM auth_tokens WHERE token='$safeToken' AND expires_at > NOW() LIMIT 1");
+                if ($uRes && $uRes->num_rows > 0) {
+                    $uRow = $uRes->fetch_assoc();
+                    $userEmail = $uRow['user_email'];
+                }
+            }
+        } catch (Exception $e) { /* ignore */ }
+
         try {
             $conn = getConnection();
-            $stmt = $conn->prepare("INSERT INTO api_logs (method, path, http_status, duration_ms) VALUES (?, ?, ?, ?)");
-            $stmt->bind_param('ssii', $method, $path, $status, $duration);
+            $stmt = $conn->prepare("INSERT INTO api_logs (method, path, http_status, duration_ms, user_email, ip_address, request_data, is_suspicious, suspicious_reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $isSusp = $suspCheck['suspicious'] ? 1 : 0;
+            $suspReason = $suspCheck['reason'];
+            $stmt->bind_param('ssiisssis', $method, $path, $status, $duration, $userEmail, $ip, $rawBody, $isSusp, $suspReason);
             $stmt->execute();
+
+            // If suspicious and it's a real user action, also log to activity_logs as an alert
+            if ($suspCheck['suspicious'] && !empty($userEmail)) {
+                $safeEmail  = $conn->real_escape_string($userEmail);
+                $safeReason = $conn->real_escape_string($suspCheck['reason']);
+                $safePath   = $conn->real_escape_string($path);
+                $safeIp     = $conn->real_escape_string($ip);
+                $conn->query("INSERT INTO activity_logs (user_email, user_name, action, target_type, detail, severity, ip_address)
+                              VALUES ('$safeEmail','','SUSPICIOUS_REQUEST','api','$safeReason on $safePath','critical','$safeIp')");
+            }
         } catch (Exception $e) {
-            // Ignore logging errors
+            // Ignore logging errors silently
         }
     }
 });

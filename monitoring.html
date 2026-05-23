@@ -147,10 +147,47 @@
         /* ── Stats row ── */
         .stats-row {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(6, 1fr);
             gap: 16px;
             margin-bottom: 32px;
         }
+
+        /* ── Search bar ── */
+        .tab-search {
+            padding: 7px 14px;
+            border: 1.5px solid #ccc;
+            border-radius: 6px;
+            font-size: 13px;
+            width: 260px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .tab-search:focus { border-color: #111; }
+
+        /* ── Severity badges ── */
+        .sev-badge { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .sev-info     { background: #e3f2fd; color: #1565c0; }
+        .sev-warning  { background: #fff8e1; color: #e65100; }
+        .sev-critical { background: #fdecea; color: #b71c1c; }
+
+        /* ── Change type badges ── */
+        .change-badge { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .change-created  { background: #e8f5e9; color: #2e7d32; }
+        .change-modified { background: #fff3e0; color: #e65100; }
+        .change-deleted  { background: #fdecea; color: #b71c1c; }
+
+        /* ── Alert feed item ── */
+        .alert-item { display: flex; align-items: flex-start; gap: 14px; padding: 14px 16px; border-bottom: 1px solid #f0f0f0; transition: background 0.15s; }
+        .alert-item:hover { background: #fafafa; }
+        .alert-icon { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+        .alert-icon.critical { background: #fdecea; }
+        .alert-icon.warning  { background: #fff8e1; }
+        .alert-icon.info     { background: #e3f2fd; }
+        .alert-body { flex: 1; }
+        .alert-action { font-size: 12px; font-weight: 700; color: #111; margin-bottom: 3px; }
+        .alert-detail { font-size: 12px; color: #555; word-break: break-word; }
+        .alert-meta { font-size: 11px; color: #999; margin-top: 4px; }
+        .alert-time { font-size: 12px; color: #999; white-space: nowrap; margin-left: auto; }
 
         .stat-card {
             border: 1px solid #e0e0e0;
@@ -478,6 +515,8 @@
         <div class="nav-item" onclick="switchTab('batches', this)">All Batches</div>
         <div class="nav-item" onclick="switchTab('activity', this)">User Activity Log</div>
         <div class="nav-item" onclick="switchTab('network', this)">Network API Monitor</div>
+        <div class="nav-item" onclick="switchTab('alerts', this)" id="navAlerts">🔔 Security &amp; Alerts</div>
+        <div class="nav-item" onclick="switchTab('changes', this)">🔧 System Changes</div>
     </div>
 
     <div class="content">
@@ -494,6 +533,7 @@
                     <div class="stat-card"><div class="stat-label">Items Checked</div><div class="stat-value" id="sChecked">—</div></div>
                     <div class="stat-card"><div class="stat-label">Total Users</div><div class="stat-value" id="sUsers">—</div></div>
                     <div class="stat-card"><div class="stat-label">Batches Deleted</div><div class="stat-value" id="sDeleted">—</div></div>
+                    <div class="stat-card" style="border-color:#ffcdd2;"><div class="stat-label" style="color:#c62828;">Suspicious Requests</div><div class="stat-value" id="sSuspicious" style="color:#c62828;">—</div></div>
                 </div>
 
                 <div class="section-title">User Summary</div>
@@ -564,7 +604,10 @@
 
             <!-- Tab 2: User Activity Log -->
             <div id="tab-activity" class="tab-pane">
-                <div class="section-title">Recent User Actions</div>
+                <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom: 1.5px solid #111; margin-bottom: 16px; padding-bottom: 8px;">
+                    <div class="section-title" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">User Activity Log</div>
+                    <input type="text" id="activitySearch" class="tab-search" placeholder="Search user, action, detail..." onkeyup="filterActivity()">
+                </div>
                 <div class="feed" id="activityFeed">
                     <div class="empty">No activity yet.</div>
                 </div>
@@ -587,7 +630,10 @@
 
             <!-- Tab 3: Network API Monitor -->
             <div id="tab-network" class="tab-pane">
-                <div class="section-title">Live API Requests</div>
+                <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom: 1.5px solid #111; margin-bottom: 16px; padding-bottom: 8px;">
+                    <div class="section-title" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">Live API Requests</div>
+                    <input type="text" id="networkSearch" class="tab-search" placeholder="Search method, path, status..." onkeyup="filterNetwork()">
+                </div>
                 <div class="table-wrap">
                     <table>
                         <thead>
@@ -597,10 +643,13 @@
                                 <th>Path</th>
                                 <th>HTTP Status</th>
                                 <th>Duration</th>
+                                <th>User</th>
+                                <th>IP</th>
+                                <th>Suspicious</th>
                             </tr>
                         </thead>
                         <tbody id="apiTable">
-                            <tr><td colspan="5" class="empty">No network requests logged yet.</td></tr>
+                            <tr><td colspan="8" class="empty">No network requests logged yet.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -617,6 +666,68 @@
                         <button class="page-btn" onclick="changeNetworkPage(-1)" id="networkPrevBtn" disabled>&larr; Prev</button>
                         <div id="networkPageNumbers" style="display: flex; gap: 4px;"></div>
                         <button class="page-btn" onclick="changeNetworkPage(1)" id="networkNextBtn" disabled>Next &rarr;</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 4: Security & Alerts -->
+            <div id="tab-alerts" class="tab-pane">
+                <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom: 1.5px solid #c62828; margin-bottom: 16px; padding-bottom: 8px;">
+                    <div class="section-title" style="border-bottom:none; margin-bottom:0; padding-bottom:0; color:#c62828;">🔔 Security &amp; Alerts</div>
+                    <input type="text" id="alertSearch" class="tab-search" placeholder="Search action, user, detail..." onkeyup="filterAlerts()">
+                </div>
+                <div class="feed" id="alertFeed">
+                    <div class="empty">No security alerts yet.</div>
+                </div>
+                <div id="alertPagination" style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding: 12px 16px; background: #fff; border: 1px solid #e0e0e0; border-radius: 6px;">
+                    <div id="alertPageInfo" style="font-size: 13px; color: #666; font-weight: 500;">Showing 0 to 0 of 0 alerts</div>
+                    <div style="display: flex; gap: 4px; align-items: center;">
+                        <select id="alertPageSize" onchange="changeAlertPageSize()" class="page-size-select">
+                            <option value="10">10 / page</option>
+                            <option value="15" selected>15 / page</option>
+                            <option value="30">30 / page</option>
+                            <option value="50">50 / page</option>
+                        </select>
+                        <button class="page-btn" onclick="changeAlertPage(-1)" id="alertPrevBtn" disabled>&larr; Prev</button>
+                        <div id="alertPageNumbers" style="display: flex; gap: 4px;"></div>
+                        <button class="page-btn" onclick="changeAlertPage(1)" id="alertNextBtn" disabled>Next &rarr;</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 5: System Changes -->
+            <div id="tab-changes" class="tab-pane">
+                <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom: 1.5px solid #111; margin-bottom: 16px; padding-bottom: 8px;">
+                    <div class="section-title" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">🔧 System Changes &amp; Feature Tracker</div>
+                    <input type="text" id="changesSearch" class="tab-search" placeholder="Search file, change type..." onkeyup="filterChanges()">
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Type</th>
+                                <th>File</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody id="changesTable">
+                            <tr><td colspan="4" class="empty">No system changes detected yet.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="changesPagination" style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding: 12px 16px; background: #fff; border: 1px solid #e0e0e0; border-radius: 6px;">
+                    <div id="changesPageInfo" style="font-size: 13px; color: #666; font-weight: 500;">Showing 0 to 0 of 0 changes</div>
+                    <div style="display: flex; gap: 4px; align-items: center;">
+                        <select id="changesPageSize" onchange="changeChangesPageSize()" class="page-size-select">
+                            <option value="10">10 / page</option>
+                            <option value="15" selected>15 / page</option>
+                            <option value="30">30 / page</option>
+                            <option value="50">50 / page</option>
+                        </select>
+                        <button class="page-btn" onclick="changeChangesPage(-1)" id="changesPrevBtn" disabled>&larr; Prev</button>
+                        <div id="changesPageNumbers" style="display: flex; gap: 4px;"></div>
+                        <button class="page-btn" onclick="changeChangesPage(1)" id="changesNextBtn" disabled>Next &rarr;</button>
                     </div>
                 </div>
             </div>
@@ -1052,11 +1163,19 @@
             allNetworkData = data.api_logs || [];
             renderNetworkTable();
 
+            // Security Alerts
+            allAlertsData = data.alerts || [];
+            renderAlertFeed();
+
+            // System Changes
+            allChangesData = data.system_changes || [];
+            renderChangesTable();
+
+            // Suspicious requests stat
+            document.getElementById('sSuspicious').textContent = data.stats.suspicious_requests ?? '0';
+
             document.getElementById('loadingMsg').style.display = 'none';
             document.getElementById('mainContent').style.display = 'block';
-            
-
-
         } catch (err) {
             badge.className = 'status-badge err';
             statusText.textContent = `ERROR — ${err.message}`;
@@ -1378,6 +1497,267 @@
 
     loadData();
     setInterval(loadData, 30000);
+
+    // ── New state variables ───────────────────────────────────────────────────
+    let allAlertsData = [];
+    let currentAlertPage = 1;
+    let alertPerPage = 15;
+
+    let allChangesData = [];
+    let currentChangesPage = 1;
+    let changesPerPage = 15;
+
+    let activityFilteredData = [];
+    let networkFilteredData = [];
+
+    // ── Filtered render for Activity ─────────────────────────────────────────
+    function filterActivity() {
+        const q = (document.getElementById('activitySearch').value || '').toLowerCase();
+        activityFilteredData = q
+            ? allActivityData.filter(l => (l.user_name+l.user_email+l.action+l.detail+l.severity+l.page_url).toLowerCase().includes(q))
+            : allActivityData.slice();
+        currentActivityPage = 1;
+        renderActivityFeedFiltered();
+    }
+
+    function renderActivityFeedFiltered() {
+        const src = activityFilteredData.length ? activityFilteredData : allActivityData;
+        const feed = document.getElementById('activityFeed');
+        const totalItems = src.length;
+        const totalPages = Math.ceil(totalItems / activityPerPage) || 1;
+        if (currentActivityPage > totalPages) currentActivityPage = totalPages;
+        if (currentActivityPage < 1) currentActivityPage = 1;
+        const startIdx = (currentActivityPage - 1) * activityPerPage;
+        const endIdx = startIdx + activityPerPage;
+        const paginated = src.slice(startIdx, endIdx);
+        if (paginated.length === 0) {
+            feed.innerHTML = '<div class="empty">No matching activity found.</div>';
+            document.getElementById('activityPageInfo').textContent = 'Showing 0 to 0 of 0 logs';
+            document.getElementById('activityPageNumbers').innerHTML = '';
+            document.getElementById('activityPrevBtn').disabled = true;
+            document.getElementById('activityNextBtn').disabled = true;
+            return;
+        }
+        feed.innerHTML = paginated.map(log => `
+            <div class="feed-item">
+                <span class="feed-badge ${badgeClass(log.action)}">${actionLabel(log.action)}</span>
+                <div class="feed-body">
+                    <div class="feed-user">${log.user_name} <span style="font-weight:400;color:#888;font-size:11px;">${log.user_email}</span>
+                        ${log.severity && log.severity !== 'info' ? `<span class="sev-badge sev-${log.severity}" style="margin-left:6px;">${log.severity}</span>` : ''}
+                    </div>
+                    <div class="feed-detail">${actionDetail(log)}</div>
+                    ${log.page_url ? `<div style="font-size:11px;color:#aaa;margin-top:3px;">📄 ${log.page_url}</div>` : ''}
+                    ${log.ip_address ? `<div style="font-size:11px;color:#aaa;">🌐 ${log.ip_address}</div>` : ''}
+                </div>
+                <div class="feed-time">${formatTime(log.created_at)}</div>
+            </div>
+        `).join('');
+        document.getElementById('activityPageInfo').textContent = `Showing ${startIdx + 1} to ${Math.min(endIdx, totalItems)} of ${totalItems} logs`;
+        document.getElementById('activityPrevBtn').disabled = currentActivityPage === 1;
+        document.getElementById('activityNextBtn').disabled = currentActivityPage === totalPages;
+        let pageHTML = '';
+        let startPage = Math.max(1, currentActivityPage - 2);
+        let endPage = Math.min(totalPages, startPage + 4);
+        if (endPage - startPage < 4) startPage = Math.max(1, endPage - 4);
+        for (let p = startPage; p <= endPage; p++) {
+            pageHTML += `<button class="page-num ${p === currentActivityPage ? 'active' : ''}" onclick="currentActivityPage=${p};renderActivityFeedFiltered()">${p}</button>`;
+        }
+        document.getElementById('activityPageNumbers').innerHTML = pageHTML;
+    }
+
+    // Override renderActivityFeed to use filtered version
+    function renderActivityFeed() { renderActivityFeedFiltered(); }
+
+    // ── Filtered render for Network ──────────────────────────────────────────
+    function filterNetwork() {
+        const q = (document.getElementById('networkSearch').value || '').toLowerCase();
+        networkFilteredData = q
+            ? allNetworkData.filter(l => (l.method+l.path+(l.http_status||'')+(l.user_email||'')+(l.ip_address||'')+(l.suspicious_reason||'')).toLowerCase().includes(q))
+            : allNetworkData.slice();
+        currentNetworkPage = 1;
+        renderNetworkTableFiltered();
+    }
+
+    function renderNetworkTableFiltered() {
+        const src = networkFilteredData.length ? networkFilteredData : allNetworkData;
+        const tbody = document.getElementById('apiTable');
+        const totalItems = src.length;
+        const totalPages = Math.ceil(totalItems / networkPerPage) || 1;
+        if (currentNetworkPage > totalPages) currentNetworkPage = totalPages;
+        if (currentNetworkPage < 1) currentNetworkPage = 1;
+        const startIdx = (currentNetworkPage - 1) * networkPerPage;
+        const endIdx = startIdx + networkPerPage;
+        const paginated = src.slice(startIdx, endIdx);
+        if (paginated.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="empty">No matching requests found.</td></tr>';
+            document.getElementById('networkPageInfo').textContent = 'Showing 0 to 0 of 0 requests';
+            document.getElementById('networkPageNumbers').innerHTML = '';
+            document.getElementById('networkPrevBtn').disabled = true;
+            document.getElementById('networkNextBtn').disabled = true;
+            return;
+        }
+        tbody.innerHTML = paginated.map(log => `
+            <tr style="${log.is_suspicious == 1 ? 'background:#fff8f8;' : ''}">
+                <td>${formatTime(log.created_at)}</td>
+                <td class="${getMethodClass(log.method)}">${log.method}</td>
+                <td style="font-family:monospace;color:#444;">${log.path}</td>
+                <td class="${getStatusClass(log.http_status)}">${log.http_status}</td>
+                <td style="color:#555;">${log.duration_ms}ms</td>
+                <td style="color:#555;font-size:12px;">${log.user_email || '—'}</td>
+                <td style="color:#888;font-size:12px;font-family:monospace;">${log.ip_address || '—'}</td>
+                <td>${log.is_suspicious == 1 ? `<span class="sev-badge sev-critical" title="${log.suspicious_reason||''}">⚠ YES</span>` : '<span style="color:#999;font-size:11px;">—</span>'}</td>
+            </tr>
+        `).join('');
+        document.getElementById('networkPageInfo').textContent = `Showing ${startIdx + 1} to ${Math.min(endIdx, totalItems)} of ${totalItems} requests`;
+        document.getElementById('networkPrevBtn').disabled = currentNetworkPage === 1;
+        document.getElementById('networkNextBtn').disabled = currentNetworkPage === totalPages;
+        let pageHTML = '';
+        let startPage = Math.max(1, currentNetworkPage - 2);
+        let endPage = Math.min(totalPages, startPage + 4);
+        if (endPage - startPage < 4) startPage = Math.max(1, endPage - 4);
+        for (let p = startPage; p <= endPage; p++) {
+            pageHTML += `<button class="page-num ${p === currentNetworkPage ? 'active' : ''}" onclick="currentNetworkPage=${p};renderNetworkTableFiltered()">${p}</button>`;
+        }
+        document.getElementById('networkPageNumbers').innerHTML = pageHTML;
+    }
+
+    // Override renderNetworkTable to use filtered version
+    function renderNetworkTable() { renderNetworkTableFiltered(); }
+
+    // ── Security Alerts ──────────────────────────────────────────────────────
+    function changeAlertPage(delta) { currentAlertPage += delta; renderAlertFeed(); }
+    function goToAlertPage(page) { currentAlertPage = page; renderAlertFeed(); }
+    function changeAlertPageSize() {
+        alertPerPage = parseInt(document.getElementById('alertPageSize').value);
+        currentAlertPage = 1;
+        renderAlertFeed();
+    }
+
+    function filterAlerts() {
+        const q = (document.getElementById('alertSearch').value || '').toLowerCase();
+        const filtered = q
+            ? allAlertsData.filter(l => (l.action+l.user_email+l.user_name+l.detail+l.severity+l.page_url+l.ip_address).toLowerCase().includes(q))
+            : allAlertsData.slice();
+        renderAlertFeedData(filtered);
+    }
+
+    function renderAlertFeed() { filterAlerts(); }
+
+    function renderAlertFeedData(src) {
+        const feed = document.getElementById('alertFeed');
+        const totalItems = src.length;
+        const totalPages = Math.ceil(totalItems / alertPerPage) || 1;
+        if (currentAlertPage > totalPages) currentAlertPage = totalPages;
+        if (currentAlertPage < 1) currentAlertPage = 1;
+        const startIdx = (currentAlertPage - 1) * alertPerPage;
+        const endIdx = startIdx + alertPerPage;
+        const paginated = src.slice(startIdx, endIdx);
+        const alertIcons = { critical: '🚨', warning: '⚠️', info: 'ℹ️' };
+        if (paginated.length === 0) {
+            feed.innerHTML = '<div class="empty">No security alerts found.</div>';
+            document.getElementById('alertPageInfo').textContent = 'Showing 0 to 0 of 0 alerts';
+            document.getElementById('alertPageNumbers').innerHTML = '';
+            document.getElementById('alertPrevBtn').disabled = true;
+            document.getElementById('alertNextBtn').disabled = true;
+            return;
+        }
+        feed.innerHTML = paginated.map(log => {
+            const sev = log.severity || 'info';
+            const icon = alertIcons[sev] || 'ℹ️';
+            return `
+            <div class="alert-item">
+                <div class="alert-icon ${sev}">${icon}</div>
+                <div class="alert-body">
+                    <div class="alert-action">
+                        <span class="sev-badge sev-${sev}">${sev.toUpperCase()}</span>
+                        &nbsp;${log.action}
+                    </div>
+                    <div class="alert-detail">${log.detail || '—'}</div>
+                    <div class="alert-meta">
+                        👤 ${log.user_name || '?'} &lt;${log.user_email || 'anonymous'}&gt;
+                        ${log.ip_address ? ` &nbsp;🌐 ${log.ip_address}` : ''}
+                        ${log.page_url ? ` &nbsp;📄 ${log.page_url}` : ''}
+                    </div>
+                </div>
+                <div class="alert-time">${formatTime(log.created_at)}</div>
+            </div>`;
+        }).join('');
+        document.getElementById('alertPageInfo').textContent = `Showing ${startIdx + 1} to ${Math.min(endIdx, totalItems)} of ${totalItems} alerts`;
+        document.getElementById('alertPrevBtn').disabled = currentAlertPage === 1;
+        document.getElementById('alertNextBtn').disabled = currentAlertPage === totalPages;
+        let pageHTML = '';
+        let startPage = Math.max(1, currentAlertPage - 2);
+        let endPage = Math.min(totalPages, startPage + 4);
+        if (endPage - startPage < 4) startPage = Math.max(1, endPage - 4);
+        for (let p = startPage; p <= endPage; p++) {
+            pageHTML += `<button class="page-num ${p === currentAlertPage ? 'active' : ''}" onclick="goToAlertPage(${p})">${p}</button>`;
+        }
+        document.getElementById('alertPageNumbers').innerHTML = pageHTML;
+
+        // Highlight nav item if there are critical alerts
+        const critCount = allAlertsData.filter(a => a.severity === 'critical').length;
+        const navEl = document.getElementById('navAlerts');
+        if (navEl) navEl.innerHTML = critCount > 0 ? `🔔 Security &amp; Alerts <span style="background:#c62828;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:6px;">${critCount}</span>` : '🔔 Security &amp; Alerts';
+    }
+
+    // ── System Changes ───────────────────────────────────────────────────────
+    function changeChangesPage(delta) { currentChangesPage += delta; renderChangesTable(); }
+    function goToChangesPage(page) { currentChangesPage = page; renderChangesTable(); }
+    function changeChangesPageSize() {
+        changesPerPage = parseInt(document.getElementById('changesPageSize').value);
+        currentChangesPage = 1;
+        renderChangesTable();
+    }
+
+    function filterChanges() {
+        const q = (document.getElementById('changesSearch').value || '').toLowerCase();
+        const filtered = q
+            ? allChangesData.filter(c => (c.change_type+c.file_path+c.description).toLowerCase().includes(q))
+            : allChangesData.slice();
+        renderChangesTableData(filtered);
+    }
+
+    function renderChangesTable() { filterChanges(); }
+
+    function renderChangesTableData(src) {
+        const tbody = document.getElementById('changesTable');
+        const totalItems = src.length;
+        const totalPages = Math.ceil(totalItems / changesPerPage) || 1;
+        if (currentChangesPage > totalPages) currentChangesPage = totalPages;
+        if (currentChangesPage < 1) currentChangesPage = 1;
+        const startIdx = (currentChangesPage - 1) * changesPerPage;
+        const endIdx = startIdx + changesPerPage;
+        const paginated = src.slice(startIdx, endIdx);
+        const changeBadgeClass = { FILE_CREATED: 'change-created', FILE_MODIFIED: 'change-modified', FILE_DELETED: 'change-deleted' };
+        if (paginated.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="empty">No system changes found.</td></tr>';
+            document.getElementById('changesPageInfo').textContent = 'Showing 0 to 0 of 0 changes';
+            document.getElementById('changesPageNumbers').innerHTML = '';
+            document.getElementById('changesPrevBtn').disabled = true;
+            document.getElementById('changesNextBtn').disabled = true;
+            return;
+        }
+        tbody.innerHTML = paginated.map(c => `
+            <tr>
+                <td style="white-space:nowrap;">${formatTime(c.detected_at)}</td>
+                <td><span class="change-badge ${changeBadgeClass[c.change_type] || ''}">${c.change_type.replace('FILE_','')}</span></td>
+                <td style="font-family:monospace;font-size:12px;color:#333;">${c.file_path}</td>
+                <td style="font-size:12px;color:#555;">${c.description || '—'}</td>
+            </tr>
+        `).join('');
+        document.getElementById('changesPageInfo').textContent = `Showing ${startIdx + 1} to ${Math.min(endIdx, totalItems)} of ${totalItems} changes`;
+        document.getElementById('changesPrevBtn').disabled = currentChangesPage === 1;
+        document.getElementById('changesNextBtn').disabled = currentChangesPage === totalPages;
+        let pageHTML = '';
+        let startPage = Math.max(1, currentChangesPage - 2);
+        let endPage = Math.min(totalPages, startPage + 4);
+        if (endPage - startPage < 4) startPage = Math.max(1, endPage - 4);
+        for (let p = startPage; p <= endPage; p++) {
+            pageHTML += `<button class="page-num ${p === currentChangesPage ? 'active' : ''}" onclick="goToChangesPage(${p})">${p}</button>`;
+        }
+        document.getElementById('changesPageNumbers').innerHTML = pageHTML;
+    }
+
 </script>
 
 </body>
