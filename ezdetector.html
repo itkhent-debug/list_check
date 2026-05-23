@@ -1528,20 +1528,29 @@
                     }
 
                     // ── STEP 4: Find checkbox column ──────────────────────────────────
-                    // For each x in left 25%, compute per-row "checked pixel" count and
-                    // score by (max-min) * mean with bonus near left edge.
-                    function isCheckedPixel(r, g, b) {
-                        const isBlue  = b > 115 && b > r + 45 && r < 155;
-                        const isCyan  = b > 95  && g > 95  && Math.abs(g - b) < 35 && b > r + 40 && r < 130;
-                        const isGreen = g > 125 && g > r + 35 && g > b + 8 && r < 135;
-                        return isBlue || isCyan || isGreen;
+                    // Uses SATURATION — how "colorful" a pixel is — instead of hardcoded
+                    // color thresholds.  Saturation = 1 - min(r,g,b)/max(r,g,b).
+                    // A checked checkbox has saturated (colorful) pixels; unchecked has gray.
+                    // This adapts to ANY checkbox color automatically.
+                    function saturation(r, g, b) {
+                        const maxC = Math.max(r, g, b);
+                        const minC = Math.min(r, g, b);
+                        if (maxC === 0) return 0;
+                        return (maxC - minC) / maxC;
+                    }
+
+                    function isSaturatedPixel(r, g, b) {
+                        const sat = saturation(r, g, b);
+                        // Must be saturated AND not too dark (luminance check)
+                        const L = 0.299 * r + 0.587 * g + 0.114 * b;
+                        return sat > 0.25 && L > 40;
                     }
 
                     const MAX_COL = Math.min(W - 1, Math.floor(W * 0.25));
                     const band = Math.max(2, rowH * 0.28);
                     const halfW = Math.max(5, Math.floor(W * 0.018));
 
-                    // Quick column scan: sample every 2px for speed
+                    // Quick column scan (every 2px)
                     let bestColX = 0;
                     let bestColScore = -1;
 
@@ -1554,7 +1563,7 @@
                             let cnt = 0;
                             for (let y = sy; y < ey; y++) {
                                 const i = (y * W + x) * 4;
-                                if (isCheckedPixel(fullData[i], fullData[i+1], fullData[i+2])) cnt++;
+                                if (isSaturatedPixel(fullData[i], fullData[i+1], fullData[i+2])) cnt++;
                             }
                             vals.push(cnt);
                         }
@@ -1562,15 +1571,13 @@
                         const maxV = sorted[sorted.length - 1];
                         const minV = sorted[0];
                         const range = maxV - minV;
-                        const sum = sorted.reduce((a, c) => a + c, 0);
-                        const mean = sum / rowCount;
+                        const mean = sorted.reduce((a, c) => a + c, 0) / rowCount;
                         const xFrac = x / W;
 
-                        // Score: range * mean, weighted by proximity to 2-6% zone
-                        const distW = xFrac < 0.02 ? 0.7 + xFrac * 15
+                        const distW = xFrac < 0.015 ? 0.6 + xFrac * 27
                                    : xFrac <= 0.06 ? 1.0
-                                   : xFrac <= 0.12 ? 0.8
-                                   : 0.4;
+                                   : xFrac <= 0.12 ? 0.7
+                                   : 0.3;
                         const score = range * mean * distW;
                         if (score > bestColScore) {
                             bestColScore = score;
@@ -1578,9 +1585,9 @@
                         }
                     }
 
+                    // Fine-scan around best column
                     let colLeft, colRight;
-                    if (bestColScore >= 2) {
-                        // Fine-scan around the best column
+                    if (bestColScore >= 1) {
                         const fineStart = Math.max(0, bestColX - 4);
                         const fineEnd   = Math.min(MAX_COL, bestColX + 4);
                         let fineBestX = bestColX;
@@ -1593,7 +1600,7 @@
                                 const ey = Math.min(H, Math.ceil(cy + band));
                                 for (let y = sy; y < ey; y++) {
                                     const i = (y * W + x) * 4;
-                                    if (isCheckedPixel(fullData[i], fullData[i+1], fullData[i+2])) cnt++;
+                                    if (isSaturatedPixel(fullData[i], fullData[i+1], fullData[i+2])) cnt++;
                                 }
                             }
                             if (cnt > fineBestScore) { fineBestScore = cnt; fineBestX = x; }
@@ -1607,7 +1614,9 @@
 
                     console.log(`[EZDetector v5] Col: x=${colLeft}-${colRight} peak=${bestColX} score=${bestColScore.toFixed(2)}`);
 
-                    // ── STEP 5: Count checked pixels per row ──────────────────────────
+                    // ── STEP 5: Count SATURATED pixels per row ────────────────────────
+                    // Uses saturation (colorfulness) instead of hardcoded color matching.
+                    // Adaptive to any checkbox color.
                     const rowCounts = new Array(rowCount);
                     for (let r = 0; r < rowCount; r++) {
                         const cy = rowCenters[r];
@@ -1618,7 +1627,7 @@
                             const base = y * W;
                             for (let x = colLeft; x <= colRight; x++) {
                                 const i = (base + x) * 4;
-                                if (isCheckedPixel(fullData[i], fullData[i+1], fullData[i+2])) cnt++;
+                                if (isSaturatedPixel(fullData[i], fullData[i+1], fullData[i+2])) cnt++;
                             }
                         }
                         rowCounts[r] = cnt;
@@ -1631,12 +1640,12 @@
                     const medC = sortedC[Math.floor(sortedC.length / 2)];
 
                     let threshold;
-                    if (maxC < 3) {
+                    if (maxC < 2) {
                         threshold = maxC + 1;
                     } else {
-                        // 2-means clustering
+                        // 2-means clustering on saturation counts
                         let cL = minC, cH = maxC;
-                        for (let iter = 0; iter < 15; iter++) {
+                        for (let iter = 0; iter < 20; iter++) {
                             let sL = 0, nL = 0, sH = 0, nH = 0;
                             for (const v of rowCounts) {
                                 if (Math.abs(v - cL) <= Math.abs(v - cH)) { sL += v; nL++; }
@@ -1652,8 +1661,8 @@
                         } else {
                             threshold = (cL + cH) / 2;
                         }
-                        threshold = Math.max(threshold, maxC * 0.12);
-                        threshold = Math.min(threshold, maxC * 0.90);
+                        threshold = Math.max(threshold, maxC * 0.10);
+                        threshold = Math.min(threshold, maxC * 0.92);
                     }
 
                     const results = rowCounts.map(c => c >= threshold);
