@@ -1369,10 +1369,10 @@
                             const g = imgData[i + 1];
                             const b = imgData[i + 2];
                             
-                            // Blue checkbox pixel: blue is dominant, bright, and saturated
-                            const isBlue = (b > r + 30) && (b > g - 20) && (b > 80) && (r < 160);
+                            // Blue checkbox pixel: blue must be bright, saturated, and highly dominant over red
+                            const isBlue = (b > 130) && (b > r + 60) && (b > g - 10) && (r < 120);
                             if (isBlue) {
-                                blueCount++;
+                                  blueCount++;
                             }
                         }
                         blueDensity[y] = blueCount;
@@ -1381,7 +1381,7 @@
                     // Get expected template checkboxes for comparison to find best grid alignment
                     const expectedStates = currentMode === 'activation'
                         ? [true, true, true, true, true, false, false, false, true, false, false, false, true, false, false, false, true] // 17 rows
-                        : [true, true, true, true, true, true, true]; // 7 rows
+                        : [true, true, true, false, true, true, true, false, true, true, true, false, true, true, true]; // 15 rows
 
                     // Grid search to find rowHeight (A) and tableTop (B) that maximizes matching expected states
                     let bestA = H / rowCount;
@@ -1441,6 +1441,43 @@
                         // Mark checked if we found substantial blue pixels in its row band
                         results[r] = blueSum > 10;
                     }
+
+                    // 5. Draw debug overlay on the canvas
+                    ctx.drawImage(img, 0, 0, W, H);
+                    
+                    // Draw grid lines and checkbox detection boxes
+                    ctx.lineWidth = Math.max(1, Math.floor(W * 0.002));
+                    for (let r = 0; r < rowCount; r++) {
+                        const expectedY = rowHeight * r + tableTop;
+                        
+                        // Draw row divider/center line in light semi-transparent red/yellow
+                        ctx.strokeStyle = 'rgba(255, 235, 59, 0.35)'; // yellow line
+                        ctx.beginPath();
+                        ctx.moveTo(0, expectedY);
+                        ctx.lineTo(W, expectedY);
+                        ctx.stroke();
+                        
+                        // Draw checkbox sampling region box
+                        const startY = Math.max(0, Math.floor(expectedY - rowHeight * 0.35));
+                        const endY   = Math.min(H - 1, Math.ceil(expectedY + rowHeight * 0.35));
+                        const x1 = colLeft;
+                        const x2 = colRight;
+                        
+                        if (results[r]) {
+                            // Checked: Green box
+                            ctx.strokeStyle = '#10b981';
+                            ctx.fillStyle = 'rgba(16, 185, 129, 0.2)';
+                        } else {
+                            // Unchecked: Red box
+                            ctx.strokeStyle = '#ef4444';
+                            ctx.fillStyle = 'rgba(239, 68, 68, 0.2)';
+                        }
+                        ctx.fillRect(x1, startY, x2 - x1, endY - startY);
+                        ctx.strokeRect(x1, startY, x2 - x1, endY - startY);
+                    }
+                    
+                    // Update preview src with the debug drawn image
+                    document.getElementById('scanPreview').src = canvas.toDataURL();
 
                     resolve(results);
                 };
