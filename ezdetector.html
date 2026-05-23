@@ -1295,54 +1295,149 @@
             }
         }
 
+        // Canvas-based checkbox detector — samples left column pixels per row
+        function detectCheckboxStatesFromCanvas(imageSrc, rowCount) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = function () {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+
+                    const W = img.width;
+                    const H = img.height;
+
+                    // Estimate table area: skip top ~18% (header/controls bar) and bottom ~5%
+                    const tableTop    = Math.floor(H * 0.18);
+                    const tableBottom = Math.floor(H * 0.95);
+                    const tableHeight = tableBottom - tableTop;
+
+                    // Checkbox column: leftmost ~8% of image width, centered horizontally in that band
+                    const colLeft  = Math.floor(W * 0.02);
+                    const colRight = Math.floor(W * 0.09);
+                    const colW     = colRight - colLeft;
+
+                    const rowHeight = tableHeight / rowCount;
+                    const results   = [];
+
+                    // For dark-theme (activation) images the background is very dark (~#080710 = 8,7,16)
+                    // A checked blue checkbox will have high blue channel and moderate brightness
+                    // For light-theme (reminder) the background is white; checked = colored fill
+
+                    const isDarkTheme = currentMode === 'activation';
+
+                    for (let r = 0; r < rowCount; r++) {
+                        const rowCenterY = tableTop + rowHeight * r + rowHeight / 2;
+                        // Sample a square ~18px centered on expected checkbox center
+                        const sampleSize = Math.max(12, Math.floor(rowHeight * 0.4));
+                        const sx = Math.max(0, colLeft + Math.floor(colW / 2) - sampleSize / 2);
+                        const sy = Math.max(0, Math.floor(rowCenterY) - sampleSize / 2);
+                        const sw = Math.min(sampleSize, W - sx);
+                        const sh = Math.min(sampleSize, H - sy);
+
+                        if (sw <= 0 || sh <= 0) { results.push(false); continue; }
+
+                        const pixelData = ctx.getImageData(sx, sy, sw, sh).data;
+                        let totalR = 0, totalG = 0, totalB = 0;
+                        const pixCount = sw * sh;
+
+                        for (let p = 0; p < pixelData.length; p += 4) {
+                            totalR += pixelData[p];
+                            totalG += pixelData[p + 1];
+                            totalB += pixelData[p + 2];
+                        }
+
+                        const avgR = totalR / pixCount;
+                        const avgG = totalG / pixCount;
+                        const avgB = totalB / pixCount;
+                        const brightness = (avgR + avgG + avgB) / 3;
+
+                        // Color saturation — measure how "colorful" the region is
+                        const maxC = Math.max(avgR, avgG, avgB);
+                        const minC = Math.min(avgR, avgG, avgB);
+                        const saturation = maxC > 0 ? (maxC - minC) / maxC : 0;
+
+                        let isChecked = false;
+                        if (isDarkTheme) {
+                            // Dark bg (~8,7,16): a filled blue/purple checkbox has brightness > 60 and some saturation
+                            isChecked = brightness > 55 && saturation > 0.12;
+                        } else {
+                            // Light bg (~240,240,240): a checked box has a colored fill — saturation > threshold
+                            isChecked = saturation > 0.15 && brightness < 220;
+                        }
+
+                        results.push(isChecked);
+                    }
+
+                    resolve(results);
+                };
+                img.onerror = () => resolve(null); // fallback — keep template defaults
+                img.src = imageSrc;
+            });
+        }
+
         // Main Image Processing Orchestrator
         function processUploadedImage(file) {
             document.getElementById('dropzone').style.display = 'none';
             document.getElementById('resultsContainer').style.display = 'none';
             
             const scanContainer = document.getElementById('scanContainer');
-            const scanPreview = document.getElementById('scanPreview');
+            const scanPreview   = document.getElementById('scanPreview');
             scanContainer.style.display = 'flex';
 
-            // Show preview image
+            // Read file as data URL (needed for canvas + preview)
             const reader = new FileReader();
-            reader.onload = function(e) {
-                scanPreview.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
+            reader.onload = async function(e) {
+                const imageSrc = e.target.result;
+                scanPreview.src = imageSrc;
 
-            // Simulation Status Loggers
-            updateScanStatus("Initializing OCR Engine...", "Setting up tesseract environment");
-            
-            setTimeout(() => {
-                updateScanStatus("Loading layout rules...", "Applying filters to improve character clarity");
-            }, 500);
+                updateScanStatus("Initializing scanner...", "Loading image onto analysis canvas");
 
-            setTimeout(() => {
-                updateScanStatus("Scanning blocks...", "Detecting columns and grid coordinates");
-            }, 1000);
+                await new Promise(r => setTimeout(r, 500));
+                updateScanStatus("Detecting checkbox states...", "Sampling left column pixel regions per row");
 
-            // Check if filename indicates a sample or matches sequence strings
-            const isReminderFile = file.name.toLowerCase().includes('rem') || file.name.toLowerCase().includes('pgn');
-            const isActivationFile = file.name.toLowerCase().includes('act') || file.name.toLowerCase().includes('jkn');
-
-            // Set final delay to construct table
-            setTimeout(() => {
+                // Load base template first
+                let baseTemplate;
                 if (currentMode === 'activation') {
-                    tableData = JSON.parse(JSON.stringify(activationTemplateData));
-                    document.getElementById('syncBatchName').value = "JACKSON ACTIVATION JKN-0626CT";
+                    baseTemplate = JSON.parse(JSON.stringify(activationTemplateData));
+                    document.getElementById('syncBatchName').value  = "JACKSON ACTIVATION JKN-0626CT";
                     document.getElementById('syncCampaignDate').value = "May 30 - Jun 21, 2026";
                 } else {
-                    tableData = JSON.parse(JSON.stringify(reminderTemplateData));
-                    document.getElementById('syncBatchName').value = "JACKSON REMINDER PGN-0626CT";
+                    baseTemplate = JSON.parse(JSON.stringify(reminderTemplateData));
+                    document.getElementById('syncBatchName').value  = "JACKSON REMINDER PGN-0626CT";
                     document.getElementById('syncCampaignDate').value = "Jun 3 - Jun 25, 2026";
                 }
-                
-                // Do actual Tesseract OCR in background in case user wants real log outputs
+
+                await new Promise(r => setTimeout(r, 400));
+                updateScanStatus("Mapping checked rows...", "Applying canvas pixel analysis results");
+
+                // Run checkbox detection on canvas
+                const checkedStates = await detectCheckboxStatesFromCanvas(imageSrc, baseTemplate.length);
+
+                if (checkedStates) {
+                    // Apply detected checkbox states to the template rows
+                    baseTemplate.forEach((row, i) => {
+                        if (i < checkedStates.length) {
+                            row.checked = checkedStates[i];
+                        }
+                    });
+                }
+
+                tableData = baseTemplate;
+
+                await new Promise(r => setTimeout(r, 300));
+                updateScanStatus("Scan complete!", `Detected ${checkedStates ? checkedStates.filter(Boolean).length : '?'} checked rows`);
+
+                setTimeout(() => {
+                    showTableResults();
+                }, 400);
+
+                // Background OCR for raw text log (optional)
                 runRealOCR(file);
-                
-                showTableResults();
-            }, 1600);
+            };
+            reader.readAsDataURL(file);
         }
 
         function loadSample() {
