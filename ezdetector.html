@@ -1302,66 +1302,64 @@
                     const W = img.width;
                     const H = img.height;
 
-                    // Estimate table area: skip top ~18% (header/controls bar) and bottom ~5%
-                    const tableTop    = Math.floor(H * 0.18);
+                    // Table area: skip top ~15% (header/toolbar) and bottom ~5%
+                    const tableTop    = Math.floor(H * 0.15);
                     const tableBottom = Math.floor(H * 0.95);
                     const tableHeight = tableBottom - tableTop;
 
-                    // Checkbox column: leftmost ~8% of image width, centered horizontally in that band
-                    const colLeft  = Math.floor(W * 0.02);
-                    const colRight = Math.floor(W * 0.09);
+                    // Scan a wide checkbox column — leftmost 14% of the image
+                    // This captures checkbox even if it's not perfectly at the left edge
+                    const colLeft  = Math.floor(W * 0.01);
+                    const colRight = Math.floor(W * 0.14);
                     const colW     = colRight - colLeft;
 
                     const rowHeight = tableHeight / rowCount;
                     const results   = [];
 
-                    // For dark-theme (activation) images the background is very dark (~#080710 = 8,7,16)
-                    // A checked blue checkbox will have high blue channel and moderate brightness
-                    // For light-theme (reminder) the background is white; checked = colored fill
-
                     const isDarkTheme = currentMode === 'activation';
 
                     for (let r = 0; r < rowCount; r++) {
-                        const rowCenterY = tableTop + rowHeight * r + rowHeight / 2;
-                        // Sample a square ~18px centered on expected checkbox center
-                        const sampleSize = Math.max(12, Math.floor(rowHeight * 0.4));
-                        const sx = Math.max(0, colLeft + Math.floor(colW / 2) - sampleSize / 2);
-                        const sy = Math.max(0, Math.floor(rowCenterY) - sampleSize / 2);
-                        const sw = Math.min(sampleSize, W - sx);
-                        const sh = Math.min(sampleSize, H - sy);
+                        // Sample the FULL height of the row in the checkbox column
+                        // Skip 5% padding top/bottom per row to avoid border lines
+                        const rowTop = tableTop + rowHeight * r;
+                        const sy = Math.max(0, Math.floor(rowTop + rowHeight * 0.1));
+                        const sh = Math.max(1, Math.floor(rowHeight * 0.8));
+                        const sx = Math.max(0, colLeft);
+                        const sw = Math.min(colW, W - sx);
 
                         if (sw <= 0 || sh <= 0) { results.push(false); continue; }
 
                         const pixelData = ctx.getImageData(sx, sy, sw, sh).data;
-                        let totalR = 0, totalG = 0, totalB = 0;
-                        const pixCount = sw * sh;
+                        const totalPixels = sw * sh;
+                        let coloredPixelCount = 0;
 
                         for (let p = 0; p < pixelData.length; p += 4) {
-                            totalR += pixelData[p];
-                            totalG += pixelData[p + 1];
-                            totalB += pixelData[p + 2];
+                            const pr = pixelData[p];
+                            const pg = pixelData[p + 1];
+                            const pb = pixelData[p + 2];
+                            const brightness = (pr + pg + pb) / 3;
+                            const maxC = Math.max(pr, pg, pb);
+                            const minC = Math.min(pr, pg, pb);
+                            const saturation = maxC > 0 ? (maxC - minC) / maxC : 0;
+
+                            if (isDarkTheme) {
+                                // Dark bg: a blue/purple checkbox pixel has decent brightness + saturation
+                                // We count ANY pixel brighter than the near-black background
+                                if (brightness > 45 && saturation > 0.10) {
+                                    coloredPixelCount++;
+                                }
+                            } else {
+                                // Light bg: checked box has distinctly colored (non-white) fill
+                                if (saturation > 0.18 && brightness < 225) {
+                                    coloredPixelCount++;
+                                }
+                            }
                         }
 
-                        const avgR = totalR / pixCount;
-                        const avgG = totalG / pixCount;
-                        const avgB = totalB / pixCount;
-                        const brightness = (avgR + avgG + avgB) / 3;
-
-                        // Color saturation — measure how "colorful" the region is
-                        const maxC = Math.max(avgR, avgG, avgB);
-                        const minC = Math.min(avgR, avgG, avgB);
-                        const saturation = maxC > 0 ? (maxC - minC) / maxC : 0;
-
-                        let isChecked = false;
-                        if (isDarkTheme) {
-                            // Dark bg (~8,7,16): a filled blue/purple checkbox has brightness > 60 and some saturation
-                            isChecked = brightness > 55 && saturation > 0.12;
-                        } else {
-                            // Light bg (~240,240,240): a checked box has a colored fill — saturation > threshold
-                            isChecked = saturation > 0.15 && brightness < 220;
-                        }
-
-                        results.push(isChecked);
+                        // Mark as checked if colored pixels make up > 0.8% of the sampled region
+                        // (a 20x20 checkbox on a 200px wide strip would be ~1%)
+                        const colorRatio = coloredPixelCount / totalPixels;
+                        results.push(colorRatio > 0.008);
                     }
 
                     resolve(results);
@@ -1370,6 +1368,7 @@
                 img.src = imageSrc;
             });
         }
+
 
         // Main Image Processing Orchestrator
         function processUploadedImage(file) {
