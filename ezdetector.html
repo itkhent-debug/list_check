@@ -1208,13 +1208,37 @@
         ];
 
         const reminderTemplateData = [
-            { checked: true, name: "WU Text PGN-0626CT Seq 1", label: "Warm Up Text", date: "Jun 3, 2026", time: "4:30 PM", crmOk: true },
-            { checked: true, name: "Full Seq 1 PGN-0626CT Seq 1", label: "Dynamic Call", date: "Jun 3, 2026", time: "5:00 PM", crmOk: true },
-            { checked: true, name: "Spec Text 1 PGN-0626CT Seq 2", label: "Special Text", date: "Jun 4, 2026", time: "5:00 PM", crmOk: true },
-            { checked: true, name: "Full Seq 2 PGN-0626CT Seq 3", label: "Dynamic Call", date: "Jun 5, 2026", time: "5:00 PM", crmOk: true },
-            { checked: true, name: "Full Seq PGN-0626CT Seq 4", label: "Dynamic Call", date: "Jun 11, 2026", time: "5:00 PM", crmOk: true },
-            { checked: true, name: "Full Seq PGN-0626CT Seq 5", label: "Dynamic Call", date: "Jun 18, 2026", time: "5:00 PM", crmOk: true },
-            { checked: true, name: "Full Seq PGN-0626CT Seq 6", label: "Dynamic Call", date: "Jun 25, 2026", time: "5:00 PM", crmOk: true }
+            { checked: true, name: "Rem1 Call JKN-0626CT",  label: "Call Reminder", date: "Jun 3",  time: "05:00 PM" },
+            { checked: true, name: "Rem1 Text1 JKN-0626CT", label: "Text Reminder", date: "Jun 4",  time: "10:00 AM" },
+            { checked: true, name: "Rem1 Text2 JKN-0626CT", label: "Text Reminder", date: "Jun 5",  time: "10:00 AM" },
+            { checked: true, name: "Rem2 Call JKN-0626CT",  label: "Call Reminder", date: "Jun 10", time: "05:00 PM" },
+            { checked: true, name: "Rem2 Text1 JKN-0626CT", label: "Text Reminder", date: "Jun 11", time: "10:00 AM" },
+            { checked: true, name: "Rem2 Text2 JKN-0626CT", label: "Text Reminder", date: "Jun 12", time: "10:00 AM" },
+            { checked: true, name: "Rem3 Call JKN-0626CT",  label: "Call Reminder", date: "Jun 17", time: "05:00 PM" },
+            { checked: true, name: "Rem3 Text1 JKN-0626CT", label: "Text Reminder", date: "Jun 18", time: "10:00 AM" },
+            { checked: true, name: "Rem3 Text2 JKN-0626CT", label: "Text Reminder", date: "Jun 19", time: "10:00 AM" },
+            { checked: true, name: "Rem4 Call JKN-0626CT",  label: "Call Reminder", date: "Jun 24", time: "05:00 PM" },
+            { checked: true, name: "Rem4 Text1 JKN-0626CT", label: "Text Reminder", date: "Jun 25", time: "10:00 AM" },
+            { checked: true, name: "Rem4 Text2 JKN-0626CT", label: "Text Reminder", date: "Jun 26", time: "10:00 AM" }
+        ];
+
+        // FULL SCAN TEMPLATE (Reminder mode): All 15 rows as they appear in the actual dashboard image
+        const fullReminderScanTemplate = [
+            { name: "Rem1 Call JKN-0626CT",  label: "Call Reminder", date: "Jun 3",  time: "05:00 PM" },
+            { name: "Rem1 Text1 JKN-0626CT", label: "Text Reminder", date: "Jun 4",  time: "10:00 AM" },
+            { name: "Rem1 Text2 JKN-0626CT", label: "Text Reminder", date: "Jun 5",  time: "10:00 AM" },
+            { name: "Full Seq 3 JKN-0626CT Seq 5", label: "Dynamic Call", date: "Jun 7", time: "05:00 PM" },
+            { name: "Rem2 Call JKN-0626CT",  label: "Call Reminder", date: "Jun 10", time: "05:00 PM" },
+            { name: "Rem2 Text1 JKN-0626CT", label: "Text Reminder", date: "Jun 11", time: "10:00 AM" },
+            { name: "Rem2 Text2 JKN-0626CT", label: "Text Reminder", date: "Jun 12", time: "10:00 AM" },
+            { name: "Full Seq 3 JKN-0626CT Seq 6", label: "Dynamic Call", date: "Jun 14", time: "05:00 PM" },
+            { name: "Rem3 Call JKN-0626CT",  label: "Call Reminder", date: "Jun 17", time: "05:00 PM" },
+            { name: "Rem3 Text1 JKN-0626CT", label: "Text Reminder", date: "Jun 18", time: "10:00 AM" },
+            { name: "Rem3 Text2 JKN-0626CT", label: "Text Reminder", date: "Jun 19", time: "10:00 AM" },
+            { name: "Full Seq 3 JKN-0626CT Seq 7", label: "Dynamic Call", date: "Jun 21", time: "05:00 PM" },
+            { name: "Rem4 Call JKN-0626CT",  label: "Call Reminder", date: "Jun 24", time: "05:00 PM" },
+            { name: "Rem4 Text1 JKN-0626CT", label: "Text Reminder", date: "Jun 25", time: "10:00 AM" },
+            { name: "Rem4 Text2 JKN-0626CT", label: "Text Reminder", date: "Jun 26", time: "10:00 AM" }
         ];
 
 
@@ -1459,9 +1483,11 @@
                     document.getElementById('syncCampaignDate').value = "May 30 - Jun 21, 2026";
                 } else {
                     baseTemplate = JSON.parse(JSON.stringify(reminderTemplateData));
-                    scanTemplate = reminderTemplateData;
-                    document.getElementById('syncBatchName').value  = "JACKSON REMINDER PGN-0626CT";
-                    document.getElementById('syncCampaignDate').value = "Jun 3 - Jun 25, 2026";
+                    // Use the FULL 15-row scan template so canvas row positions
+                    // correctly align with the actual dashboard image layout
+                    scanTemplate = fullReminderScanTemplate;
+                    document.getElementById('syncBatchName').value  = "JACKSON REMINDER JKN-0626CT";
+                    document.getElementById('syncCampaignDate').value = "Jun 3 - Jun 26, 2026";
                 }
 
                 await new Promise(r => setTimeout(r, 400));
@@ -1488,9 +1514,16 @@
                         // Reminder rows: skip — they are never added to activationTemplateData
                     });
                 } else if (checkedStates) {
-                    // Reminder mode: direct 1-to-1 mapping
-                    baseTemplate.forEach((row, i) => {
-                        if (i < checkedStates.length) row.checked = checkedStates[i];
+                    // Reminder mode: map only reminder rows (discard activation/dynamic call rows)
+                    const reminderLabels = ['Call Reminder', 'Text Reminder'];
+                    let reminderIdx = 0;
+                    scanTemplate.forEach((scanRow, i) => {
+                        if (reminderLabels.includes(scanRow.label)) {
+                            if (reminderIdx < baseTemplate.length) {
+                                baseTemplate[reminderIdx].checked = checkedStates[i];
+                                reminderIdx++;
+                            }
+                        }
                     });
                 }
 
