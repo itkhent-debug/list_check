@@ -1172,7 +1172,7 @@
         };
 
         // Pre-parsed templates matching the user's screenshots
-        // ACTIVATION SEQUENCE: Only Warm Up Text, Dynamic Call, Special Text
+        // ACTIVATION DISPLAY: Only Warm Up Text, Dynamic Call, Special Text shown in output table
         const activationTemplateData = [
             { checked: true,  name: "W/U Text JKN-0626CT Seq 1",    label: "Warm Up Text", date: "May 30", time: "04:30 PM" },
             { checked: true,  name: "Full Seq 1 JKN-0626CT Seq 1",  label: "Dynamic Call", date: "May 30", time: "05:00 PM" },
@@ -1184,6 +1184,28 @@
             { checked: true,  name: "Full Seq 3 JKN-0626CT Seq 7",  label: "Dynamic Call", date: "Jun 21", time: "05:00 PM" }
         ];
 
+        // FULL SCAN TEMPLATE: All 17 rows as they appear in the actual dashboard image
+        // Used ONLY for canvas pixel detection so row positions match the real image layout.
+        // Reminder rows are detected but then discarded — only activation rows are kept.
+        const fullActivationScanTemplate = [
+            { name: "W/U Text JKN-0626CT Seq 1",    label: "Warm Up Text",  date: "May 30", time: "04:30 PM" },
+            { name: "Full Seq 1 JKN-0626CT Seq 1",  label: "Dynamic Call",  date: "May 30", time: "05:00 PM" },
+            { name: "Spec Text 1 JKN-0626CT Seq 2", label: "Special Text",  date: "May 31", time: "05:00 PM" },
+            { name: "Full Seq 2 JKN-0626CT Seq 3",  label: "Dynamic Call",  date: "Jun 1",  time: "05:00 PM" },
+            { name: "Spec Text 2 JKN-0626CT Seq 4", label: "Special Text",  date: "Jun 2",  time: "05:00 PM" },
+            { name: "Rem1 Call JKN-0626CT",          label: "Call Reminder", date: "Jun 3",  time: "05:00 PM" },
+            { name: "Rem1 Text1 JKN-0626CT",         label: "Text Reminder", date: "Jun 4",  time: "10:00 AM" },
+            { name: "Rem1 Text2 JKN-0626CT",         label: "Text Reminder", date: "Jun 5",  time: "10:00 AM" },
+            { name: "Full Seq 3 JKN-0626CT Seq 5",  label: "Dynamic Call",  date: "Jun 7",  time: "05:00 PM" },
+            { name: "Rem2 Call JKN-0626CT",          label: "Call Reminder", date: "Jun 10", time: "05:00 PM" },
+            { name: "Rem2 Text1 JKN-0626CT",         label: "Text Reminder", date: "Jun 11", time: "10:00 AM" },
+            { name: "Rem2 Text2 JKN-0626CT",         label: "Text Reminder", date: "Jun 12", time: "10:00 AM" },
+            { name: "Full Seq 3 JKN-0626CT Seq 6",  label: "Dynamic Call",  date: "Jun 14", time: "05:00 PM" },
+            { name: "Rem3 Call JKN-0626CT",          label: "Call Reminder", date: "Jun 17", time: "05:00 PM" },
+            { name: "Rem3 Text1 JKN-0626CT",         label: "Text Reminder", date: "Jun 18", time: "10:00 AM" },
+            { name: "Rem3 Text2 JKN-0626CT",         label: "Text Reminder", date: "Jun 19", time: "10:00 AM" },
+            { name: "Full Seq 3 JKN-0626CT Seq 7",  label: "Dynamic Call",  date: "Jun 21", time: "05:00 PM" }
+        ];
 
         const reminderTemplateData = [
             { checked: true, name: "WU Text PGN-0626CT Seq 1", label: "Warm Up Text", date: "Jun 3, 2026", time: "4:30 PM", crmOk: true },
@@ -1194,6 +1216,7 @@
             { checked: true, name: "Full Seq PGN-0626CT Seq 5", label: "Dynamic Call", date: "Jun 18, 2026", time: "5:00 PM", crmOk: true },
             { checked: true, name: "Full Seq PGN-0626CT Seq 6", label: "Dynamic Call", date: "Jun 25, 2026", time: "5:00 PM", crmOk: true }
         ];
+
 
         // On Load Check Auth
         window.addEventListener('DOMContentLoaded', async () => {
@@ -1392,12 +1415,18 @@
 
                 // Load base template first
                 let baseTemplate;
+                let scanTemplate; // used for canvas detection row-position mapping
+
                 if (currentMode === 'activation') {
                     baseTemplate = JSON.parse(JSON.stringify(activationTemplateData));
+                    // Use the FULL 17-row scan template so canvas row positions
+                    // correctly align with the actual dashboard image layout
+                    scanTemplate = fullActivationScanTemplate;
                     document.getElementById('syncBatchName').value  = "JACKSON ACTIVATION JKN-0626CT";
                     document.getElementById('syncCampaignDate').value = "May 30 - Jun 21, 2026";
                 } else {
                     baseTemplate = JSON.parse(JSON.stringify(reminderTemplateData));
+                    scanTemplate = reminderTemplateData;
                     document.getElementById('syncBatchName').value  = "JACKSON REMINDER PGN-0626CT";
                     document.getElementById('syncCampaignDate').value = "Jun 3 - Jun 25, 2026";
                 }
@@ -1405,20 +1434,35 @@
                 await new Promise(r => setTimeout(r, 400));
                 updateScanStatus("Mapping checked rows...", "Applying canvas pixel analysis results");
 
-                // Run checkbox detection on canvas
-                const checkedStates = await detectCheckboxStatesFromCanvas(imageSrc, baseTemplate.length);
+                // Run checkbox detection using the FULL scan template row count
+                // so pixel row positions match what's actually in the image
+                const checkedStates = await detectCheckboxStatesFromCanvas(imageSrc, scanTemplate.length);
 
-                if (checkedStates) {
-                    // Apply detected checkbox states to the template rows
-                    baseTemplate.forEach((row, i) => {
-                        if (i < checkedStates.length) {
-                            row.checked = checkedStates[i];
+                if (currentMode === 'activation' && checkedStates) {
+                    // Map detection results from the 17-row scan template back to
+                    // the 8-row activation display template (skip reminder rows)
+                    // scanTemplate[i].label tells us if it's a reminder row to discard
+                    const reminderLabels = ['Call Reminder', 'Text Reminder'];
+                    let activationIdx = 0;
+                    scanTemplate.forEach((scanRow, i) => {
+                        if (!reminderLabels.includes(scanRow.label)) {
+                            // This is an activation row — apply detected state
+                            if (activationIdx < baseTemplate.length) {
+                                baseTemplate[activationIdx].checked = checkedStates[i];
+                                activationIdx++;
+                            }
                         }
+                        // Reminder rows: skip — they are never added to activationTemplateData
+                    });
+                } else if (checkedStates) {
+                    // Reminder mode: direct 1-to-1 mapping
+                    baseTemplate.forEach((row, i) => {
+                        if (i < checkedStates.length) row.checked = checkedStates[i];
                     });
                 }
 
                 // Only keep CHECKED rows — unchecked ones are excluded so they won't be deleted
-                const checkedCount = checkedStates ? checkedStates.filter(Boolean).length : baseTemplate.filter(r => r.checked).length;
+                const checkedCount = baseTemplate.filter(r => r.checked).length;
                 tableData = baseTemplate.filter(row => row.checked);
 
                 await new Promise(r => setTimeout(r, 300));
@@ -1433,6 +1477,7 @@
             };
             reader.readAsDataURL(file);
         }
+
 
         function loadSample() {
             document.getElementById('dropzone').style.display = 'none';
