@@ -1386,17 +1386,17 @@
                     // Grid search to find rowHeight (A) and tableTop (B) that maximizes matching expected states
                     let bestA = H / rowCount;
                     let bestB = bestA / 2;
-                    let maxMatchScore = -1;
+                    let maxMatchScore = -999999;
 
                     // Range to search for rowHeight (allow +/- 15% variance)
                     const startA = (H / rowCount) * 0.85;
                     const endA   = (H / rowCount) * 1.15;
 
-                    for (let A = startA; A <= endA; A += 0.2) {
+                    for (let A = startA; A <= endA; A += 0.1) {
                         // Offset search from -A to +1.5*A
                         const startB = -A * 0.5;
                         const endB   = A * 1.5;
-                        for (let B = startB; B <= endB; B += 0.5) {
+                        for (let B = startB; B <= endB; B += 0.2) {
                             let matchScore = 0;
                             for (let r = 0; r < rowCount; r++) {
                                 const expectedY = A * r + B;
@@ -1405,13 +1405,22 @@
                                 
                                 // Sum blue pixels in this candidate row band
                                 let blueSum = 0;
+                                let weightedSum = 0;
                                 for (let y = startY; y < endY; y++) {
+                                    const dist = Math.abs(y - expectedY);
+                                    const weight = Math.max(0, 1 - dist / (A * 0.35));
                                     blueSum += blueDensity[y];
+                                    weightedSum += blueDensity[y] * weight;
                                 }
                                 
                                 const detectedChecked = blueSum > 10;
                                 if (detectedChecked === expectedStates[r]) {
-                                    matchScore++;
+                                    matchScore += 100; // Correct state prediction bonus
+                                    if (expectedStates[r] && blueSum > 0) {
+                                        // Centering bonus for checked checkboxes: encourages grid lines
+                                        // to be perfectly aligned with the middle of the blue peaks
+                                        matchScore += (weightedSum / blueSum) * 20;
+                                    }
                                 }
                             }
 
@@ -1425,7 +1434,7 @@
 
                     const rowHeight = bestA;
                     const tableTop  = bestB;
-                    console.log(`Auto-calibration: rowHeight=${rowHeight.toFixed(2)}, tableTop=${tableTop.toFixed(2)}, maxMatchScore=${maxMatchScore}/${rowCount}`);
+                    console.log(`Auto-calibration: rowHeight=${rowHeight.toFixed(2)}, tableTop=${tableTop.toFixed(2)}, maxMatchScore=${maxMatchScore.toFixed(1)}`);
 
                     // 4. Set the final results based on the optimal grid alignment
                     const results = new Array(rowCount).fill(false);
