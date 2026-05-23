@@ -1439,54 +1439,53 @@
                         blueDensity[y] = blueCount;
                     }
 
-                    // Get expected template checkboxes for comparison to find best grid alignment
-                    const expectedStates = currentMode === 'activation'
-                        ? [true, true, true, true, true, false, false, false, true, false, false, false, true, false, false, false, true] // 17 rows
-                        : [true, true, true, false, true, true, true, false, true, true, true, false, true, true, true]; // 15 rows
+                    // ── Casino-agnostic grid calibration ─────────────────────────────────
+                    // Instead of comparing against a hardcoded expected pattern (which only
+                    // works for one specific casino layout), we find the best regular grid
+                    // by maximising the SUM of blue-pixel density at each candidate row
+                    // centre — i.e., we look for evenly-spaced positions that maximise
+                    // alignment with actual blue-checkbox clusters in the image.
+                    // This works correctly regardless of which casino or how many rows
+                    // are checked vs unchecked.
 
-                    // Grid search to find rowHeight (A) and tableTop (B) that maximizes matching expected states
+                    // Build a smoothed blue-density signal (5-pixel rolling average)
+                    const smoothed = new Array(H).fill(0);
+                    for (let y = 0; y < H; y++) {
+                        let s = 0, cnt = 0;
+                        for (let dy = -2; dy <= 2; dy++) {
+                            const py = y + dy;
+                            if (py >= 0 && py < H) { s += blueDensity[py]; cnt++; }
+                        }
+                        smoothed[y] = s / cnt;
+                    }
+
+                    // Grid search: find rowHeight (A) and tableTop (B) that maximise
+                    // total blue-pixel density sampled at the row-centre positions.
+                    // This is purely data-driven — no hardcoded expected checkbox pattern.
                     let bestA = H / rowCount;
                     let bestB = bestA / 2;
                     let maxMatchScore = -999999;
 
-                    // Range to search for rowHeight (allow +/- 15% variance)
-                    const startA = (H / rowCount) * 0.85;
-                    const endA   = (H / rowCount) * 1.15;
+                    const startA = (H / rowCount) * 0.80;
+                    const endA   = (H / rowCount) * 1.20;
 
-                    for (let A = startA; A <= endA; A += 0.1) {
-                        // Offset search from -A to +1.5*A
+                    for (let A = startA; A <= endA; A += 0.5) {
                         const startB = -A * 0.5;
                         const endB   = A * 1.5;
-                        for (let B = startB; B <= endB; B += 0.2) {
-                            let matchScore = 0;
+                        for (let B = startB; B <= endB; B += 0.5) {
+                            let score = 0;
                             for (let r = 0; r < rowCount; r++) {
-                                const expectedY = A * r + B;
-                                const startY = Math.max(0, Math.floor(expectedY - A * 0.35));
-                                const endY   = Math.min(H - 1, Math.ceil(expectedY + A * 0.35));
-                                
-                                // Sum blue pixels in this candidate row band
-                                let blueSum = 0;
-                                let weightedSum = 0;
-                                for (let y = startY; y < endY; y++) {
-                                    const dist = Math.abs(y - expectedY);
-                                    const weight = Math.max(0, 1 - dist / (A * 0.35));
-                                    blueSum += blueDensity[y];
-                                    weightedSum += blueDensity[y] * weight;
-                                }
-                                
-                                const detectedChecked = blueSum > 10;
-                                if (detectedChecked === expectedStates[r]) {
-                                    matchScore += 100; // Correct state prediction bonus
-                                    if (expectedStates[r] && blueSum > 0) {
-                                        // Centering bonus for checked checkboxes: encourages grid lines
-                                        // to be perfectly aligned with the middle of the blue peaks
-                                        matchScore += (weightedSum / blueSum) * 20;
-                                    }
+                                const cy = A * r + B;
+                                const sy = Math.max(0, Math.floor(cy - A * 0.40));
+                                const ey = Math.min(H - 1, Math.ceil(cy + A * 0.40));
+                                // Weighted sum — pixels closer to the row centre count more
+                                for (let y = sy; y <= ey; y++) {
+                                    const w = 1 - Math.abs(y - cy) / (A * 0.40);
+                                    score += smoothed[y] * Math.max(0, w);
                                 }
                             }
-
-                            if (matchScore > maxMatchScore) {
-                                maxMatchScore = matchScore;
+                            if (score > maxMatchScore) {
+                                maxMatchScore = score;
                                 bestA = A;
                                 bestB = B;
                             }
@@ -1495,21 +1494,31 @@
 
                     const rowHeight = bestA;
                     const tableTop  = bestB;
-                    console.log(`Auto-calibration: rowHeight=${rowHeight.toFixed(2)}, tableTop=${tableTop.toFixed(2)}, maxMatchScore=${maxMatchScore.toFixed(1)}`);
+                    console.log(`[EZDetector] Casino-agnostic calibration: rowHeight=${rowHeight.toFixed(2)}, tableTop=${tableTop.toFixed(2)}, score=${maxMatchScore.toFixed(1)}`);
+
+                    // Determine per-row blue threshold dynamically:
+                    // use the 75th-percentile of per-row blue sums so the threshold
+                    // adapts to each casino's screenshot brightness / DPI.
+                    const rowBlueSums = [];
+                    for (let r = 0; r < rowCount; r++) {
+                        const cy = rowHeight * r + tableTop;
+                        const sy = Math.max(0, Math.floor(cy - rowHeight * 0.40));
+                        const ey = Math.min(H - 1, Math.ceil(cy + rowHeight * 0.40));
+                        let s = 0;
+                        for (let y = sy; y <= ey; y++) s += blueDensity[y];
+                        rowBlueSums.push(s);
+                    }
+                    const sorted = [...rowBlueSums].sort((a, b) => a - b);
+                    // Threshold = midpoint between the median and the 90th-percentile max
+                    const medianVal  = sorted[Math.floor(sorted.length * 0.50)] || 0;
+                    const p90Val     = sorted[Math.floor(sorted.length * 0.90)] || 0;
+                    const blueThreshold = Math.max(8, (medianVal + p90Val) * 0.30);
+                    console.log(`[EZDetector] Dynamic blue threshold: ${blueThreshold.toFixed(1)} (median=${medianVal.toFixed(1)}, p90=${p90Val.toFixed(1)})`);
 
                     // 4. Set the final results based on the optimal grid alignment
                     const results = new Array(rowCount).fill(false);
                     for (let r = 0; r < rowCount; r++) {
-                        const expectedY = rowHeight * r + tableTop;
-                        const startY = Math.max(0, Math.floor(expectedY - rowHeight * 0.35));
-                        const endY   = Math.min(H - 1, Math.ceil(expectedY + rowHeight * 0.35));
-                        
-                        let blueSum = 0;
-                        for (let y = startY; y < endY; y++) {
-                            blueSum += blueDensity[y];
-                        }
-                        // Mark checked if we found substantial blue pixels in its row band
-                        results[r] = blueSum > 10;
+                        results[r] = rowBlueSums[r] > blueThreshold;
                     }
 
                     // 5. Draw debug overlay on the canvas
@@ -1586,15 +1595,17 @@
                     // Use the FULL 17-row scan template so canvas row positions
                     // correctly align with the actual dashboard image layout
                     scanTemplate = fullActivationScanTemplate;
-                    document.getElementById('syncBatchName').value  = "JACKSON ACTIVATION JKN-0626CT";
-                    document.getElementById('syncCampaignDate').value = "May 30 - Jun 21, 2026";
+                    // Clear stale casino-specific values so the user fills in their own
+                    document.getElementById('syncBatchName').value  = "";
+                    document.getElementById('syncCampaignDate').value = "";
                 } else {
                     baseTemplate = JSON.parse(JSON.stringify(reminderTemplateData));
                     // Use the FULL 15-row scan template so canvas row positions
                     // correctly align with the actual dashboard image layout
                     scanTemplate = fullReminderScanTemplate;
-                    document.getElementById('syncBatchName').value  = "JACKSON REMINDER JKN-0626CT";
-                    document.getElementById('syncCampaignDate').value = "Jun 3 - Jun 26, 2026";
+                    // Clear stale casino-specific values so the user fills in their own
+                    document.getElementById('syncBatchName').value  = "";
+                    document.getElementById('syncCampaignDate').value = "";
                 }
 
                 await new Promise(r => setTimeout(r, 400));
@@ -1606,22 +1617,22 @@
 
                 if (currentMode === 'activation' && checkedStates) {
                     // Map detection results from the 17-row scan template back to
-                    // the 8-row activation display template (skip reminder rows)
-                    // scanTemplate[i].label tells us if it's a reminder row to discard
+                    // the 8-row activation display template (skip reminder rows).
+                    // checkedStates[i] now comes from the casino-agnostic detector,
+                    // so it is accurate for any casino's layout.
                     const reminderLabels = ['Call Reminder', 'Text Reminder'];
                     let activationIdx = 0;
                     scanTemplate.forEach((scanRow, i) => {
                         if (!reminderLabels.includes(scanRow.label)) {
-                            // This is an activation row — apply detected state
                             if (activationIdx < baseTemplate.length) {
                                 baseTemplate[activationIdx].checked = checkedStates[i];
                                 activationIdx++;
                             }
                         }
-                        // Reminder rows: skip — they are never added to activationTemplateData
                     });
                 } else if (checkedStates) {
-                    // Reminder mode: map only reminder rows (discard activation/dynamic call rows)
+                    // Reminder mode: map only reminder/call-reminder rows;
+                    // discard Dynamic Call rows that appear as spacers in the full template.
                     const reminderLabels = ['Call Reminder', 'Text Reminder'];
                     let reminderIdx = 0;
                     scanTemplate.forEach((scanRow, i) => {
@@ -1801,53 +1812,48 @@
             let lastDateObj = null;
 
             tableData.forEach((row, index) => {
-                // Calculate Time OK logic
-                const expectedTime = standardSchedules[row.label];
-                if (expectedTime) {
-                    const normExpected = expectedTime.replace(/\s+/g, '').toLowerCase();
-                    const normActual = row.time.replace(/\s+/g, '').toLowerCase();
-                    // strip leading zero if present for exact matching
-                    const cleanExpected = normExpected.startsWith('0') ? normExpected.substring(1) : normExpected;
-                    const cleanActual = normActual.startsWith('0') ? normActual.substring(1) : normActual;
-                    
-                    row.timeOk = (cleanExpected === cleanActual);
+                // ── Time OK — compare actual scheduled time against the standard
+                // schedule for this label type.  We normalise both sides to remove
+                // whitespace and leading zeros so "04:30 PM" matches "4:30 PM".
+                const rawExpected = standardSchedules[row.label];
+                if (rawExpected) {
+                    const normalise = s => s.replace(/\s+/g, '').replace(/^0/, '').toLowerCase();
+                    row.timeOk = (normalise(rawExpected) === normalise(row.time || ''));
                 } else {
-                    row.timeOk = true; // Event day or customized labels default to true
+                    // No standard schedule defined (e.g. custom labels, Event Day) → always OK
+                    row.timeOk = true;
                 }
 
-                // If CRM OK was not previously defined, set to match timeOk
+                // CRM OK defaults to the Time OK value on first parse;
+                // once the user manually changes it, keep their value.
                 if (row.crmOk === undefined) {
                     row.crmOk = row.timeOk;
                 }
 
-                // Calculate Gap Interval
+                // ── Gap Interval between consecutive rows ───────────────────────
                 const currentDateObj = parseDateTime(row.date, row.time);
                 if (index === 0 || !lastDateObj || !currentDateObj) {
                     row.gap = '0hrs';
                 } else {
-                    const diffMs = currentDateObj - lastDateObj;
+                    const diffMs   = currentDateObj - lastDateObj;
                     const diffMins = Math.round(diffMs / (1000 * 60));
-                    const diffHrs = Math.round(diffMins / 60);
-                    
+                    const diffHrs  = Math.round(diffMins / 60);
+
                     if (diffMins < 60) {
                         row.gap = `${diffMins}mins`;
                     } else if (diffHrs % 24 === 0) {
                         const days = diffHrs / 24;
                         row.gap = `${diffHrs}hrs / ${days}d`;
                     } else {
-                        const days = Math.floor(diffHrs / 24);
+                        const days   = Math.floor(diffHrs / 24);
                         const remHrs = diffHrs % 24;
-                        if (days > 0) {
-                            row.gap = `${diffHrs}hrs / ${days}d ${remHrs}h`;
-                        } else {
-                            row.gap = `${diffHrs}hrs`;
-                        }
+                        row.gap = days > 0
+                            ? `${diffHrs}hrs / ${days}d ${remHrs}h`
+                            : `${diffHrs}hrs`;
                     }
                 }
 
-                if (currentDateObj) {
-                    lastDateObj = currentDateObj;
-                }
+                if (currentDateObj) lastDateObj = currentDateObj;
             });
         }
 
