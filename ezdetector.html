@@ -1172,25 +1172,18 @@
         };
 
         // Pre-parsed templates matching the user's screenshots
+        // ACTIVATION SEQUENCE: Only Warm Up Text, Dynamic Call, Special Text
         const activationTemplateData = [
-            { checked: true, name: "W/U Text JKN-0626CT Seq 1", label: "Warm Up Text", date: "May 30", time: "04:30 PM" },
-            { checked: true, name: "Full Seq 1 JKN-0626CT Seq 1", label: "Dynamic Call", date: "May 30", time: "05:00 PM" },
-            { checked: true, name: "Spec Text 1 JKN-0626CT Seq 2", label: "Special Text", date: "May 31", time: "05:00 PM" },
-            { checked: true, name: "Full Seq 2 JKN-0626CT Seq 3", label: "Dynamic Call", date: "Jun 1", time: "05:00 PM" },
-            { checked: true, name: "Spec Text 2 JKN-0626CT Seq 4", label: "Special Text", date: "Jun 2", time: "05:00 PM" },
-            { checked: false, name: "Rem1 Call JKN-0626CT", label: "Call Reminder", date: "Jun 3", time: "05:00 PM" },
-            { checked: false, name: "Rem1 Text1 JKN-0626CT", label: "Text Reminder", date: "Jun 4", time: "10:00 AM" },
-            { checked: false, name: "Rem1 Text2 JKN-0626CT", label: "Text Reminder", date: "Jun 5", time: "10:00 AM" },
-            { checked: true, name: "Full Seq 3 JKN-0626CT Seq 5", label: "Dynamic Call", date: "Jun 7", time: "05:00 PM" },
-            { checked: false, name: "Rem2 Call JKN-0626CT", label: "Call Reminder", date: "Jun 10", time: "05:00 PM" },
-            { checked: false, name: "Rem2 Text1 JKN-0626CT", label: "Text Reminder", date: "Jun 11", time: "10:00 AM" },
-            { checked: false, name: "Rem2 Text2 JKN-0626CT", label: "Text Reminder", date: "Jun 12", time: "10:00 AM" },
-            { checked: true, name: "Full Seq 3 JKN-0626CT Seq 6", label: "Dynamic Call", date: "Jun 14", time: "05:00 PM" },
-            { checked: false, name: "Rem3 Call JKN-0626CT", label: "Call Reminder", date: "Jun 17", time: "05:00 PM" },
-            { checked: false, name: "Rem3 Text1 JKN-0626CT", label: "Text Reminder", date: "Jun 18", time: "10:00 AM" },
-            { checked: false, name: "Rem3 Text2 JKN-0626CT", label: "Text Reminder", date: "Jun 19", time: "10:00 AM" },
-            { checked: true, name: "Full Seq 3 JKN-0626CT Seq 7", label: "Dynamic Call", date: "Jun 21", time: "05:00 PM" }
+            { checked: true,  name: "W/U Text JKN-0626CT Seq 1",    label: "Warm Up Text", date: "May 30", time: "04:30 PM" },
+            { checked: true,  name: "Full Seq 1 JKN-0626CT Seq 1",  label: "Dynamic Call", date: "May 30", time: "05:00 PM" },
+            { checked: true,  name: "Spec Text 1 JKN-0626CT Seq 2", label: "Special Text", date: "May 31", time: "05:00 PM" },
+            { checked: true,  name: "Full Seq 2 JKN-0626CT Seq 3",  label: "Dynamic Call", date: "Jun 1",  time: "05:00 PM" },
+            { checked: true,  name: "Spec Text 2 JKN-0626CT Seq 4", label: "Special Text", date: "Jun 2",  time: "05:00 PM" },
+            { checked: true,  name: "Full Seq 3 JKN-0626CT Seq 5",  label: "Dynamic Call", date: "Jun 7",  time: "05:00 PM" },
+            { checked: true,  name: "Full Seq 3 JKN-0626CT Seq 6",  label: "Dynamic Call", date: "Jun 14", time: "05:00 PM" },
+            { checked: true,  name: "Full Seq 3 JKN-0626CT Seq 7",  label: "Dynamic Call", date: "Jun 21", time: "05:00 PM" }
         ];
+
 
         const reminderTemplateData = [
             { checked: true, name: "WU Text PGN-0626CT Seq 1", label: "Warm Up Text", date: "Jun 3, 2026", time: "4:30 PM", crmOk: true },
