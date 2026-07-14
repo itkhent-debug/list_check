@@ -355,8 +355,12 @@
                     if (data.authenticated) {
                         window.location.href = 'index.html';
                     }
+                } else if (res.status === 401 || res.status === 403) {
+                    localStorage.removeItem('crm_token');
                 }
-            } catch (e) {}
+            } catch (e) {
+                console.error('Session check failed:', e);
+            }
         })();
 
         document.getElementById('loginForm').addEventListener('submit', async (e) => {

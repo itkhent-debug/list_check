@@ -3031,7 +3031,9 @@
                 const res = await fetch(`${API_URL}/${endpoint}`, options);
                 if (res.status === 401) {
                     localStorage.removeItem('crm_token');
-                    window.location.href = 'login.html';
+                    if (!window.location.pathname.endsWith('/login.html') && !window.location.pathname.endsWith('login.html')) {
+                        window.location.replace('login.html');
+                    }
                     return {};
                 }
 
