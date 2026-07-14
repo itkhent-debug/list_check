@@ -2293,13 +2293,18 @@
         async function openUserManagement() {
             const ok = await verifyPasscode('Passcode required to manage users.');
             if (!ok) return;
+            const modal = document.getElementById('userMgmtModal');
+            if (!modal) return;
+            if (modal.style.display === 'flex') return;
             resetUserMgmtModal();
-            document.getElementById('userMgmtModal').style.display = 'flex';
+            modal.style.display = 'flex';
             loadUserList();
         }
 
         function closeUserManagement() {
-            document.getElementById('userMgmtModal').style.display = 'none';
+            const modal = document.getElementById('userMgmtModal');
+            if (!modal || modal.style.display === 'none') return;
+            modal.style.display = 'none';
             resetUserMgmtModal();
         }
 
