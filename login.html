@@ -278,6 +278,38 @@
             font-size: 0.8rem;
         }
 
+        /* ── Auth-check: keep page invisible until we know user isn't logged in ── */
+        .login-shell {
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .login-shell.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Loading spinner shown during session check */
+        #auth-check-spinner {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        #auth-check-spinner .spinner-ring {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(37, 99, 235, 0.15);
+            border-top-color: #2563eb;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         @media (max-width: 840px) {
             .login-shell {
                 grid-template-columns: 1fr;
@@ -296,7 +328,10 @@
     </style>
 </head>
 <body>
-    <div class="login-shell">
+    <!-- Spinner visible while checking session; hidden once check completes -->
+    <div id="auth-check-spinner"><div class="spinner-ring"></div></div>
+
+    <div class="login-shell" id="loginShell">
         <div class="login-hero">
             <div class="hero-badge">Secure access</div>
             <h1>Welcome back</h1>
@@ -342,10 +377,23 @@
     </div>
 
     <script>
-        // Check if already logged in
+        // Check if already logged in — keep page hidden until we know
         (async function checkSession() {
+            const shell   = document.getElementById('loginShell');
+            const spinner = document.getElementById('auth-check-spinner');
+
+            function showLogin() {
+                spinner.style.display = 'none';
+                shell.classList.add('visible');
+            }
+
             const token = localStorage.getItem('crm_token');
-            if (!token) return;
+            if (!token) {
+                // No token — show login immediately
+                showLogin();
+                return;
+            }
+
             try {
                 const res = await fetch('api/auth.php?action=me', {
                     headers: { 'X-Auth-Token': token }
@@ -353,15 +401,19 @@
                 if (res.ok) {
                     const data = await res.json();
                     if (data.authenticated) {
+                        // Already logged in — redirect silently (page stays hidden)
                         window.location.replace('index.html');
                         return;
                     }
+                } else if (res.status === 401 || res.status === 403) {
+                    localStorage.removeItem('crm_token');
                 }
-                localStorage.removeItem('crm_token');
             } catch (e) {
                 console.error('Session check failed:', e);
-                localStorage.removeItem('crm_token');
             }
+
+            // Not logged in — reveal the login form
+            showLogin();
         })();
 
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
