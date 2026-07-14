@@ -142,7 +142,8 @@
             grid-template-areas:
                 "header header"
                 "sidebar main";
-            min-height: 100vh;
+            height: 100vh;
+            overflow: hidden;
             gap: 0;
             position: relative;
             z-index: 1;
@@ -350,7 +351,7 @@
         .dashboard-main {
             grid-area: main;
             padding: 20px 20px 24px;
-            overflow: hidden;
+            overflow-y: auto;
             background: transparent;
             transition: background 0.3s ease;
             min-width: 0;
@@ -1723,6 +1724,8 @@
                     "header"
                     "sidebar"
                     "main";
+                height: auto;
+                overflow: visible;
             }
             
             .dashboard-sidebar {
@@ -1730,6 +1733,11 @@
                 border-bottom: 1px solid var(--border-color);
                 flex-direction: row;
                 flex-wrap: wrap;
+                overflow-y: visible;
+            }
+            
+            .dashboard-main {
+                overflow-y: visible;
             }
             
             .sidebar-panel {
