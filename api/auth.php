@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/config.php';
-setCorsHeaders();
+setcorsheaders();
 
 $conn = getConnection();
 
@@ -40,9 +40,6 @@ if ($chk3->num_rows == 0) {
 }
 
 // Seed/Update jbdelrosario@ga.co with correct password (FPAI26).
-// IMPORTANT: only run password_hash() when actually needed -- it's CPU-expensive
-// and would otherwise slow every request enough to cause client-side timeouts
-// ("Network error. Try again.").
 $row4 = $conn->query("SELECT id, password_hash FROM users WHERE email = 'jbdelrosario@ga.co' LIMIT 1")->fetch_assoc();
 if (!$row4) {
     $p4 = password_hash('FPAI26', PASSWORD_DEFAULT);
@@ -51,7 +48,6 @@ if (!$row4) {
     $stmt->bind_param('sss', $e4, $n4, $p4);
     $stmt->execute();
 } else if (empty($row4['password_hash']) || !password_verify('FPAI26', $row4['password_hash'])) {
-    // Existing hash is missing or doesn't match FPAI26 (e.g. earlier FPA126 typo) -> repair once.
     $p4 = password_hash('FPAI26', PASSWORD_DEFAULT);
     $stmt = $conn->prepare("UPDATE users SET password_hash = ?, is_active = 1 WHERE email = 'jbdelrosario@ga.co'");
     $stmt->bind_param('s', $p4);
@@ -59,7 +55,6 @@ if (!$row4) {
 }
 
 // Seed/Update khentagustin@ga.co with correct password (FPAI26).
-// Only run password_hash when actually needed to avoid per-request slowdown.
 $chk5 = $conn->query("SELECT id, password_hash FROM users WHERE email = 'khentagustin@ga.co' LIMIT 1");
 if ($chk5 && $chk5->num_rows == 0) {
     $p5 = password_hash('FPAI26', PASSWORD_DEFAULT);
@@ -81,11 +76,89 @@ $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
 
 switch ($action) {
+    case 'google-login':
+        if ($method !== 'POST') {
+            sendResponse(['error' => 'Method not allowed'], 405);
+        }
+
+        $data = getJsonInput();
+        $idToken = $data['token'] ?? '';
+
+        if (empty($idToken)) {
+            sendResponse(['error' => 'Google token is required'], 400);
+        }
+
+        // Verify the ID token with Google
+        $googleResponse = file_get_contents('https://oauth2.googleapis.com/tokeninfo?id_token=' . urlencode($idToken));
+        if (!$googleResponse) {
+            sendResponse(['error' => 'Could not verify Google token'], 401);
+        }
+
+        $googleData = json_decode($googleResponse, true);
+        if (isset($googleData['error']) || !isset($googleData['email'])) {
+            sendResponse(['error' => 'Invalid or expired Google token'], 401);
+        }
+
+        $googleEmail = strtolower(trim($googleData['email']));
+        $googleName = $googleData['name'] ?? 'Google User';
+        $googlePicture = $googleData['picture'] ?? null;
+
+        // Check if email is @247ga.co
+        if (!preg_match('/@247ga\.co$/', $googleEmail)) {
+            sendResponse(['error' => 'Only @247ga.co Google accounts are allowed'], 403);
+        }
+
+        // Find or create user
+        $stmt = $conn->prepare("SELECT id, email, name, is_active FROM users WHERE email = ?");
+        $stmt->bind_param('s', $googleEmail);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $user = $result->fetch_assoc();
+
+        if (!$user) {
+            // Create new user from Google data
+            $stmt = $conn->prepare("INSERT INTO users (email, name, picture, auth_provider, is_active) VALUES (?, ?, ?, 'google', 1)");
+            $stmt->bind_param('sss', $googleEmail, $googleName, $googlePicture);
+            if (!$stmt->execute()) {
+                sendResponse(['error' => 'Failed to create user'], 500);
+            }
+            $userId = $conn->insert_id;
+        } else {
+            // Check if account is active
+            if (!$user['is_active']) {
+                sendResponse(['error' => 'Account is deactivated'], 403);
+            }
+            $userId = $user['id'];
+        }
+
+        // Generate a DB-backed token (30-day expiry)
+        $token = bin2hex(random_bytes(32));
+        $expires = date('Y-m-d H:i:s', strtotime('+30 days'));
+        $tStmt = $conn->prepare("INSERT INTO auth_tokens (token, user_id, user_email, user_name, expires_at) VALUES (?, ?, ?, ?, ?)");
+        $tStmt->bind_param('sisss', $token, $userId, $googleEmail, $googleName, $expires);
+        $tStmt->execute();
+
+        // Set cookie (30 days, SameSite=Lax)
+        setcookie('crm_token', $token, [
+            'expires'  => time() + 60 * 60 * 24 * 30,
+            'path'     => '/',
+            'httponly' => true,
+            'samesite' => 'Lax',
+            'secure'   => true,
+        ]);
+
+        $conn->query("UPDATE users SET last_login = NOW() WHERE id = " . $userId);
+
+        sendResponse([
+            'message' => 'Google login successful',
+            'token'   => $token,
+            'user'    => ['id' => $userId, 'email' => $googleEmail, 'name' => $googleName]
+        ]);
+        break;
+
     case 'login':
         if ($method !== 'POST') {
-            sendResponse([
-                'error' => 'Method not allowed. Login requires a POST request. If you are seeing this, ensure you are accessing the site via HTTPS (https://) to avoid redirect method degradation.'
-            ], 405);
+            sendResponse(['error' => 'Method not allowed. Login requires a POST request.'], 405);
         }
 
         $data = getJsonInput();
@@ -212,3 +285,4 @@ switch ($action) {
 
 $conn->close();
 ?>
+
