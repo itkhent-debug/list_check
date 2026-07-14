@@ -1205,6 +1205,28 @@
         return `${h}:${m} ${ampm}`;
     }
 
+    function formatGapDurationFromMinutes(totalMinutes) {
+        if (!Number.isFinite(totalMinutes) || totalMinutes <= 0) return '0hrs';
+
+        const hours = Math.floor(totalMinutes / 60);
+        const mins = totalMinutes % 60;
+
+        if (hours < 24) {
+            if (mins === 0) return `${hours}hrs`;
+            return `${hours}hrs ${mins}mins`;
+        }
+
+        const days = Math.floor(hours / 24);
+        const remainingHours = hours % 24;
+        const parts = [];
+
+        if (days > 0) parts.push(`${days}${days === 1 ? 'day' : 'days'}`);
+        if (remainingHours > 0) parts.push(`${remainingHours}${remainingHours === 1 ? 'hour' : 'hours'}`);
+        if (mins > 0) parts.push(`${mins}mins`);
+
+        return parts.join(' ');
+    }
+
     function calculateGap(prevDate, prevTime, currDate, currTime) {
         if (!prevDate || !currDate) return '—';
         const d1 = new Date(`${prevDate}T${prevTime || '00:00:00'}`);
@@ -1216,19 +1238,7 @@
         const diffMins = Math.floor(diffMs / 60000);
         if (diffMins < 60) return `${diffMins}mins`;
         
-        const diffHrs = Math.floor(diffMins / 60);
-        const remMins = diffMins % 60;
-        
-        let res = `${diffHrs}hrs`;
-        if (remMins > 0) res += ` ${remMins}mins`;
-        
-        if (diffHrs >= 24) {
-            const days = Math.floor(diffHrs / 24);
-            if (diffHrs % 24 === 0 && remMins === 0) {
-                return `${diffHrs}hrs / ${days}d`;
-            }
-        }
-        return res;
+        return formatGapDurationFromMinutes(diffMins);
     }
 
     function calculateTotalGap(firstItem, lastItem) {
@@ -1240,12 +1250,7 @@
         if (diffMs < 0 || isNaN(diffMs)) return '—';
         
         const diffMins = Math.floor(diffMs / 60000);
-        const diffHrs = Math.floor(diffMins / 60);
-        const remMins = diffMins % 60;
-        
-        let res = `${diffHrs}hrs`;
-        if (remMins > 0) res += ` ${remMins}mins`;
-        return res;
+        return formatGapDurationFromMinutes(diffMins);
     }
 
     let currentExportParams = null;

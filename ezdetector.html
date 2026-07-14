@@ -2034,6 +2034,28 @@
             }
         }
 
+        function formatGapDurationFromMinutes(totalMinutes) {
+            if (!Number.isFinite(totalMinutes) || totalMinutes <= 0) return '0hrs';
+
+            const hours = Math.floor(totalMinutes / 60);
+            const mins = totalMinutes % 60;
+
+            if (hours < 24) {
+                if (mins === 0) return `${hours}hrs`;
+                return `${hours}hrs ${mins}mins`;
+            }
+
+            const days = Math.floor(hours / 24);
+            const remainingHours = hours % 24;
+            const parts = [];
+
+            if (days > 0) parts.push(`${days}${days === 1 ? 'day' : 'days'}`);
+            if (remainingHours > 0) parts.push(`${remainingHours}${remainingHours === 1 ? 'hour' : 'hours'}`);
+            if (mins > 0) parts.push(`${mins}mins`);
+
+            return parts.join(' ');
+        }
+
         // Core Mathematical Computations
         function calculateIntervalsAndSchedules() {
             let lastDateObj = null;
@@ -2064,19 +2086,11 @@
                 } else {
                     const diffMs   = currentDateObj - lastDateObj;
                     const diffMins = Math.round(diffMs / (1000 * 60));
-                    const diffHrs  = Math.round(diffMins / 60);
 
                     if (diffMins < 60) {
                         row.gap = `${diffMins}mins`;
-                    } else if (diffHrs % 24 === 0) {
-                        const days = diffHrs / 24;
-                        row.gap = `${diffHrs}hrs / ${days}d`;
                     } else {
-                        const days   = Math.floor(diffHrs / 24);
-                        const remHrs = diffHrs % 24;
-                        row.gap = days > 0
-                            ? `${diffHrs}hrs / ${days}d ${remHrs}h`
-                            : `${diffHrs}hrs`;
+                        row.gap = formatGapDurationFromMinutes(diffMins);
                     }
                 }
 
