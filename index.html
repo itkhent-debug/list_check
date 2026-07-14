@@ -2214,11 +2214,11 @@
     </div>
 
     <!-- User Management Modal -->
-    <div id="userMgmtModal" class="modal">
-        <div class="modal-content" style="max-width:560px;">
+    <div id="userMgmtModal" class="modal" onclick="closeUserManagement()">
+        <div class="modal-content" style="max-width:560px;" onclick="event.stopPropagation()">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
                 <h2 style="margin:0;">Manage Users</h2>
-                <button class="btn btn-secondary" onclick="document.getElementById('userMgmtModal').style.display='none'" style="padding:4px 12px;font-size:1.1rem;">&times;</button>
+                <button class="btn btn-secondary" onclick="closeUserManagement()" style="padding:4px 12px;font-size:1.1rem;">&times;</button>
             </div>
 
             <!-- Add User Form -->
@@ -2293,8 +2293,25 @@
         async function openUserManagement() {
             const ok = await verifyPasscode('Passcode required to manage users.');
             if (!ok) return;
+            resetUserMgmtModal();
             document.getElementById('userMgmtModal').style.display = 'flex';
             loadUserList();
+        }
+
+        function closeUserManagement() {
+            document.getElementById('userMgmtModal').style.display = 'none';
+            resetUserMgmtModal();
+        }
+
+        function resetUserMgmtModal() {
+            const tbody = document.getElementById('userListBody');
+            if (tbody) tbody.innerHTML = '';
+            const nameInput = document.getElementById('newUserName');
+            const emailInput = document.getElementById('newUserEmail');
+            const passInput = document.getElementById('newUserPassword');
+            if (nameInput) nameInput.value = '';
+            if (emailInput) emailInput.value = '';
+            if (passInput) passInput.value = '';
         }
 
         async function loadUserList() {
