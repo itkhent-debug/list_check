@@ -2253,32 +2253,35 @@
 
     <script>
         // Auth check
-        (async function checkAuth() {
+        async function checkAuth() {
             try {
                 const res = await fetch('api/auth.php?action=me', {
                     headers: { 'X-Auth-Token': localStorage.getItem('crm_token') || '' }
                 });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.authenticated) {
-                        document.getElementById('userDisplay').textContent = data.user.name;
-                        const adminEmails = ['paul.valencia@247ga.co', 'firspointchl'];
-                        if (adminEmails.includes((data.user.email || '').toLowerCase())) {
-                            document.getElementById('usersBtn').style.display = '';
-                        }
-                    } else {
-                        localStorage.removeItem('crm_token');
-                        window.location.href = 'login.html';
-                    }
-                } else {
+                if (!res.ok) {
                     localStorage.removeItem('crm_token');
-                    window.location.href = 'login.html';
+                    window.location.replace('login.html');
+                    return false;
                 }
+                const data = await res.json();
+                if (!data.authenticated) {
+                    localStorage.removeItem('crm_token');
+                    window.location.replace('login.html');
+                    return false;
+                }
+                document.getElementById('userDisplay').textContent = data.user.name;
+                const adminEmails = ['paul.valencia@247ga.co', 'firspointchl'];
+                if (adminEmails.includes((data.user.email || '').toLowerCase())) {
+                    document.getElementById('usersBtn').style.display = '';
+                }
+                return true;
             } catch (e) {
                 console.error('Auth check error:', e);
-                window.location.href = 'login.html';
+                localStorage.removeItem('crm_token');
+                window.location.replace('login.html');
+                return false;
             }
-        })();
+        }
 
         async function logoutUser() {
             await fetch('api/auth.php?action=logout', {
@@ -4354,6 +4357,8 @@
         document.getElementById('themeToggle').addEventListener('click', toggleTheme);
 
         async function init() {
+            const authOk = await checkAuth();
+            if (!authOk) return;
             await loadBatchList();
             await loadTags();
             render();
