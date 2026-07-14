@@ -176,9 +176,9 @@
             color: white;
             display: grid;
             place-items: center;
-            font-weight: 700;
+            font-weight: 500;
             letter-spacing: 0.04em;
-            box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2);
+            box-shadow: 0 8px 18px rgba(37, 99, 235, 0.16);
         }
 
         .header-brand h1 {
@@ -188,7 +188,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            font-weight: 700;
+            font-weight: 500;
         }
 
         .header-subtitle {
@@ -337,30 +337,33 @@
             grid-area: sidebar;
             background: var(--sidebar-bg);
             border-right: 1px solid var(--border-color);
-            padding: 20px;
+            padding: 18px;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 14px;
             transition: background 0.3s ease, border-color 0.3s ease;
+            min-width: 280px;
+            max-width: 300px;
         }
 
         .dashboard-main {
             grid-area: main;
-            padding: 24px;
-            overflow-y: auto;
+            padding: 20px 20px 24px;
+            overflow: hidden;
             background: transparent;
             transition: background 0.3s ease;
+            min-width: 0;
         }
 
         /* Sidebar Panels */
         .sidebar-panel {
             background: var(--bg-card);
             border-radius: 16px;
-            padding: 16px;
+            padding: 14px;
             border: 1px solid var(--border-light);
             transition: background 0.3s ease, border-color 0.3s ease;
-            box-shadow: 0 10px 30px var(--shadow-color);
+            box-shadow: 0 8px 20px rgba(2, 6, 23, 0.18);
         }
 
         .sidebar-panel h3 {
@@ -1091,83 +1094,47 @@
             stroke-dashoffset: 0;
         }
 
-        /* Google Drive Rotating Button */
-        .gdrive-button {
+        .profile-button {
             cursor: pointer;
             border: none;
-            background: linear-gradient(135deg, #4285f4, #34a853);
-            color: #fff;
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            overflow: hidden;
-            position: relative;
-            display: grid;
-            place-content: center;
-            transition: background 300ms, transform 200ms;
-            font-weight: 600;
-        }
-
-        .gdrive-button__text {
-            position: absolute;
-            inset: 0;
-            animation: gdrive-text-rotation 8s linear infinite;
-        }
-
-        .gdrive-button__text > span {
-            position: absolute;
-            transform: rotate(calc(25.7deg * var(--index)));
-            inset: 5px;
-            font-size: 7px;
-            font-weight: 700;
-            color: #fff;
-        }
-
-        .gdrive-button__circle {
-            position: relative;
-            width: 32px;
-            height: 32px;
-            overflow: hidden;
-            background: #171717;
-            border-radius: 50%;
-            display: flex;
+            background: rgba(255,255,255,0.08);
+            color: var(--text-primary);
+            min-width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
+            transition: background 200ms ease, transform 200ms ease, box-shadow 200ms ease;
+            font-weight: 500;
+            padding: 0 12px;
+            gap: 8px;
+            border: 1px solid rgba(255,255,255,0.08);
+            backdrop-filter: blur(12px);
         }
 
-        .gdrive-button__circle svg {
-            width: 18px;
-            height: 18px;
-            transition: transform 0.3s ease-in-out;
+        .profile-button:hover {
+            background: rgba(255,255,255,0.14);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
         }
 
-        .gdrive-button__icon--copy {
-            position: absolute;
-            transform: translate(-150%, 150%);
+        .profile-button .profile-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #2563eb, #60a5fa);
+            color: white;
+            display: grid;
+            place-items: center;
+            font-weight: 600;
+            font-size: 0.88rem;
         }
 
-        .gdrive-button:hover {
-            background: #171717;
-            transform: scale(1.1);
-        }
-
-        .gdrive-button:hover .gdrive-button__circle svg:first-child {
-            transform: translate(150%, -150%);
-        }
-
-        .gdrive-button:hover .gdrive-button__icon--copy {
-            transition: transform 0.3s ease-in-out 0.1s;
-            transform: translate(0);
-        }
-
-        @keyframes gdrive-text-rotation {
-            to {
-                rotate: 360deg;
-            }
-        }
-
-        .gdrive-button:active {
-            transform: scale(0.95);
+        .profile-button .profile-text {
+            font-size: 0.86rem;
+            letter-spacing: 0.01em;
+            color: var(--text-primary);
         }
 
         /* Logout Expandable Button */
@@ -1398,9 +1365,12 @@
         /* Table */
         .table-container {
             overflow-x: auto;
+            width: 100%;
+            max-width: 100%;
         }
 
         table {
+            min-width: 720px;
             width: 100%;
             border-collapse: collapse;
         }
@@ -1854,35 +1824,10 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                     </svg>
                 </button>
-                <span id="userDisplay" style="color:var(--text-secondary);font-size:0.85rem;"></span>
-                <button class="gdrive-button" onclick="window.open('https://drive.google.com/drive/folders/1qz3Nel5SqQpJN2XFE_F20v-KDWLb6wzf?usp=sharing', '_blank')">
-                    <div class="gdrive-button__text">
-                        <span style="--index: 0">G</span>
-                        <span style="--index: 1">O</span>
-                        <span style="--index: 2">O</span>
-                        <span style="--index: 3">G</span>
-                        <span style="--index: 4">L</span>
-                        <span style="--index: 5">E</span>
-                        <span style="--index: 6">•</span>
-                        <span style="--index: 7">D</span>
-                        <span style="--index: 8">R</span>
-                        <span style="--index: 9">I</span>
-                        <span style="--index: 10">V</span>
-                        <span style="--index: 11">E</span>
-                        <span style="--index: 12">•</span>
-                        <span style="--index: 13">•</span>
-                    </div>
-                    <div class="gdrive-button__circle">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 87.3 78">
-                            <path fill="#0066da" d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5l5.4 9.35z"/>
-                            <path fill="#00ac47" d="M43.65 25L29.9 1.2C28.55 2 27.4 3.1 26.6 4.5L1.2 48.5C.4 49.9 0 51.45 0 53h27.5L43.65 25z"/>
-                            <path fill="#ea4335" d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75L86.1 57c.8-1.4 1.2-2.95 1.2-4.5H59.85L73.55 76.8z"/>
-                            <path fill="#ffba00" d="M59.8 53h27.5c0-1.55-.4-3.1-1.2-4.5L60.65 3.7c-.8-1.4-1.95-2.5-3.3-3.3L43.6 24.2 59.8 53z"/>
-                            <path fill="#00ac47" d="M59.8 53H27.5l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2L59.8 53z"/>
-                        </svg>
-                    </div>
+                <button class="profile-button" id="profileBtn" onclick="openUserManagement()" aria-label="Open profile settings">
+                    <span class="profile-avatar">K</span>
+                    <span class="profile-text">Settings</span>
                 </button>
-                <button class="btn btn-purple" id="usersBtn" onclick="openUserManagement()" style="display:none;">Users</button>
                 <button class="logout-btn" onclick="logoutUser()">
                     <div class="sign">
                         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
