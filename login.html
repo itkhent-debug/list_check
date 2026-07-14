@@ -353,13 +353,14 @@
                 if (res.ok) {
                     const data = await res.json();
                     if (data.authenticated) {
-                        window.location.href = 'index.html';
+                        window.location.replace('index.html');
+                        return;
                     }
-                } else if (res.status === 401 || res.status === 403) {
-                    localStorage.removeItem('crm_token');
                 }
+                localStorage.removeItem('crm_token');
             } catch (e) {
                 console.error('Session check failed:', e);
+                localStorage.removeItem('crm_token');
             }
         })();
 
