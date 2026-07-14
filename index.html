@@ -2254,14 +2254,26 @@
     <script>
         // Auth check
         async function checkAuth() {
+            const token = localStorage.getItem('crm_token');
+            if (!token) {
+                window.location.replace('login.html');
+                return false;
+            }
             try {
                 const res = await fetch('api/auth.php?action=me', {
-                    headers: { 'X-Auth-Token': localStorage.getItem('crm_token') || '' }
+                    headers: { 'X-Auth-Token': token }
                 });
-                if (!res.ok) {
+                // Only treat confirmed auth failures as logout triggers
+                if (res.status === 401 || res.status === 403) {
                     localStorage.removeItem('crm_token');
                     window.location.replace('login.html');
                     return false;
+                }
+                // Any other non-OK response (500, timeout proxy error, etc.)
+                // — keep the user on the page rather than booting them out
+                if (!res.ok) {
+                    console.warn('Auth check returned', res.status, '— keeping session');
+                    return true;
                 }
                 const data = await res.json();
                 if (!data.authenticated) {
@@ -2276,10 +2288,10 @@
                 }
                 return true;
             } catch (e) {
-                console.error('Auth check error:', e);
-                localStorage.removeItem('crm_token');
-                window.location.replace('login.html');
-                return false;
+                // Network error (offline, Railway cold-start timeout, etc.)
+                // Do NOT clear the token or redirect — just let the user stay
+                console.error('Auth check network error (keeping session):', e);
+                return true;
             }
         }
 
