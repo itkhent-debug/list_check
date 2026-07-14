@@ -1481,45 +1481,117 @@
             justify-content: flex-end;
         }
 
-        .toast {
-            position: fixed;
-            bottom: 24px;
-            left: 50%;
-            transform: translateX(-50%) translateY(100px) scale(0.95);
-            background: rgba(15, 23, 42, 0.96);
-            color: var(--text-secondary);
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-weight: 300;
-            font-size: 0.875rem;
-            min-width: 120px;
-            max-width: 280px;
-            text-align: center;
+        /* Smooth scrolling */
+        html, body, .dashboard-main, .dashboard-sidebar {
+            scroll-behavior: smooth;
+        }
+
+        /* Modern Top-Right Notification Styles */
+        .toast-card {
+            background: var(--bg-card);
             border: 1px solid var(--border-color);
+            border-left: 3px solid var(--accent);
+            padding: 10px 14px;
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            min-width: 250px;
+            max-width: 320px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
             opacity: 0;
-            transition: transform 0.26s ease, opacity 0.26s ease;
-            z-index: 9999;
+            transform: translateX(50px) scale(0.95);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: auto;
+            backdrop-filter: blur(8px);
         }
-
-        .toast.show {
-            transform: translateX(-50%) translateY(0) scale(1);
+        .toast-card.show {
             opacity: 1;
+            transform: translateX(0) scale(1);
+        }
+        .toast-card.fade-out {
+            opacity: 0;
+            transform: translateX(50px) scale(0.9);
+        }
+        .toast-card.success {
+            border-left-color: #22c55e;
+        }
+        .toast-card.info {
+            border-left-color: #3b82f6;
+        }
+        .toast-card.warning {
+            border-left-color: #f59e0b;
+        }
+        .toast-card.danger {
+            border-left-color: #ef4444;
+        }
+        .toast-icon {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .toast-content {
+            flex-grow: 1;
+            font-weight: 300;
         }
 
-        .toast.popup {
-            background: rgba(56, 189, 248, 0.95);
-            color: #0f172a;
-            border: 1px solid rgba(255,255,255,0.18);
+        /* Modern Progress Modal for Exporting */
+        #exportProgressModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
         }
-
-        .toast.bounce {
-            animation: popup-bounce 0.32s ease;
+        .progress-modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 28px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            border: 1px solid var(--border-color);
         }
-
-        @keyframes popup-bounce {
-            0% { transform: translateX(-50%) translateY(0) scale(0.76); opacity: 0.35; }
-            60% { transform: translateX(-50%) translateY(0) scale(1.08); opacity: 1; }
-            100% { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
+        .progress-modal-title {
+            color: var(--text-primary);
+            font-size: 1.1rem;
+            font-weight: 400;
+            margin-bottom: 8px;
+        }
+        .progress-modal-subtitle {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin-bottom: 24px;
+        }
+        .progress-track {
+            height: 6px;
+            background: var(--bg-tertiary);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 12px;
+            position: relative;
+        }
+        .progress-thumb {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent), #60a5fa);
+            border-radius: 3px;
+            transition: width 0.1s linear;
+        }
+        .progress-val {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 400;
         }
 
         @media (max-width: 768px) {
@@ -1956,7 +2028,19 @@
         </main>
     </div>
 
-    <div class="toast" id="toast">Saved!</div>
+    <div id="notification-container" style="position: fixed; top: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 99999; pointer-events: none;"></div>
+
+    <!-- Export Progress Modal -->
+    <div id="exportProgressModal">
+        <div class="progress-modal-content">
+            <div class="progress-modal-title" id="exportProgressTitle">Exporting Checklist...</div>
+            <div class="progress-modal-subtitle" id="exportProgressSubtitle">Preparing files, please wait.</div>
+            <div class="progress-track">
+                <div class="progress-thumb" id="exportProgressThumb"></div>
+            </div>
+            <div class="progress-val" id="exportProgressVal">0%</div>
+        </div>
+    </div>
 
     <!-- Export Modal -->
     <div class="modal" id="exportModal">
@@ -4003,11 +4087,56 @@
             
             closeModal();
             
+            // Show progress modal
+            const progressModal = document.getElementById('exportProgressModal');
+            const thumb = document.getElementById('exportProgressThumb');
+            const valEl = document.getElementById('exportProgressVal');
+            const titleEl = document.getElementById('exportProgressTitle');
+            const subtitleEl = document.getElementById('exportProgressSubtitle');
+
+            const fileType = currentExportType === 'excel' ? 'Excel' : 'PDF';
+            titleEl.textContent = `Exporting ${fileType}...`;
+            subtitleEl.textContent = 'Preparing your file, please wait.';
+            thumb.style.transition = 'none';
+            thumb.style.width = '0%';
+            valEl.textContent = '0%';
+            progressModal.style.display = 'flex';
+
+            await new Promise(resolve => {
+                let progress = 0;
+                const interval = setInterval(() => {
+                    // Accelerate early, decelerate near 100
+                    const remaining = 95 - progress;
+                    const step = Math.max(0.5, remaining * 0.06);
+                    progress = Math.min(95, progress + step);
+                    thumb.style.transition = 'width 0.12s linear';
+                    thumb.style.width = progress + '%';
+                    valEl.textContent = Math.round(progress) + '%';
+                    if (progress >= 95) {
+                        clearInterval(interval);
+                        resolve();
+                    }
+                }, 80);
+            });
+
+            // Complete to 100
+            thumb.style.transition = 'width 0.3s ease';
+            thumb.style.width = '100%';
+            valEl.textContent = '100%';
+            titleEl.textContent = 'Complete!';
+            subtitleEl.textContent = 'Your file is ready and downloading.';
+
+            await new Promise(r => setTimeout(r, 600));
+            progressModal.style.display = 'none';
+
+            // Trigger actual export
             if (currentExportType === 'excel') {
                 doExportExcel(workflow, name, org, casino, dates, workflowGapInfo);
             } else {
                 doExportPDF(workflow, name, org, casino, dates, workflowGapInfo);
             }
+
+            showToast(`${fileType} exported successfully!`, 'success');
         }
 
         function doExportExcel(workflow, name, org, casino, dates, workflowGapInfo) {
@@ -4199,23 +4328,65 @@
                 `${item.checked ? '✓' : '○'} ${item.name} | ${item.label} | ${formatDate(item.date)} ${formatTime(item.time)} | ${getGap(i)} | Time:${item.timeOk ? '✓' : '○'} | CRM:${item.crmOk ? '✓' : '○'}`
             ).join('\n');
             
-            navigator.clipboard.writeText(text).then(() => showToast('Copied!'));
+            navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard!', 'success'));
         }
 
-        function showToast(msg, duration = 2000) {
-            const toast = document.getElementById('toast');
-            toast.textContent = msg;
-            toast.classList.remove('popup', 'bounce');
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), duration);
+        function showToast(msg, type = 'info', duration = 3000) {
+            let actualType = type;
+            let actualDuration = duration;
+            if (typeof type === 'number') {
+                actualDuration = type;
+                actualType = 'info';
+            }
+            
+            // Map common keywords to appropriate types
+            const msgLower = msg.toLowerCase();
+            if (actualType === 'info') {
+                if (msgLower.includes('saved') || msgLower.includes('added') || msgLower.includes('success') || msgLower.includes('copied')) {
+                    actualType = 'success';
+                } else if (msgLower.includes('deleted') || msgLower.includes('remove') || msgLower.includes('clear')) {
+                    actualType = 'danger';
+                } else if (msgLower.includes('incorrect') || msgLower.includes('invalid') || msgLower.includes('please') || msgLower.includes('required')) {
+                    actualType = 'warning';
+                }
+            }
+
+            const container = document.getElementById('notification-container');
+            if (!container) return;
+
+            const card = document.createElement('div');
+            card.className = `toast-card ${actualType}`;
+            
+            let iconSvg = '';
+            if (actualType === 'success') {
+                iconSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20,6 9,17 4,12"/></svg>`;
+            } else if (actualType === 'danger') {
+                iconSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+            } else if (actualType === 'warning') {
+                iconSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+            } else {
+                iconSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`;
+            }
+
+            card.innerHTML = `
+                <div class="toast-icon">${iconSvg}</div>
+                <div class="toast-content">${msg}</div>
+            `;
+
+            container.appendChild(card);
+
+            // Trigger reflow to start transition
+            card.offsetHeight;
+            card.classList.add('show');
+
+            setTimeout(() => {
+                card.classList.add('fade-out');
+                card.addEventListener('transitionend', () => card.remove());
+            }, actualDuration);
         }
 
         function showPopupToast(msg, duration = 1800) {
-            const toast = document.getElementById('toast');
-            toast.textContent = msg;
-            toast.classList.remove('popup', 'bounce');
-            toast.classList.add('popup', 'show', 'bounce');
-            setTimeout(() => toast.classList.remove('show', 'popup', 'bounce'), duration);
+            showToast(msg, 'success', duration);
         }
 
         // Tag Management Functions
