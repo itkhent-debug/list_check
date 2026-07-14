@@ -1737,6 +1737,25 @@
                 min-width: 250px;
             }
         }
+
+        /* Drag and Drop styling */
+        tr.dragging td {
+            opacity: 0.4;
+            background: var(--bg-tertiary) !important;
+        }
+        tr.drag-over-top td {
+            border-top: 2px solid var(--accent) !important;
+        }
+        tr.drag-over-bottom td {
+            border-bottom: 2px solid var(--accent) !important;
+        }
+        .drag-handle-cell svg {
+            transition: color 0.15s ease, opacity 0.15s ease;
+        }
+        tr:hover .drag-handle-cell svg {
+            opacity: 0.9 !important;
+            color: var(--accent);
+        }
     </style>
 </head>
 <body>
@@ -1906,6 +1925,7 @@
                     <table>
                         <thead>
                             <tr>
+                                <th style="width:30px; text-align:center;"></th>
                                 <th class="check-cell" title="Select items">Sel</th>
                                 <th class="check-cell" title="Mark as done">Done</th>
                                 <th title="Subitem name">Subitem</th>
@@ -3318,7 +3338,7 @@
             // Notice row when batch name is missing
             const noticeRow = addDisabled ? `
                 <tr>
-                    <td colspan="10" style="background:#1a1a1a;padding:16px;text-align:center;">
+                    <td colspan="11" style="background:#1a1a1a;padding:16px;text-align:center;">
                         <div id="batchNameWarning" style="color:#f59e0b;font-size:0.9rem;cursor:pointer;" onmouseenter="showBatchNameArrow()" onmouseleave="hideBatchNameArrow()">
                             <strong>⚠ Please enter a Batch Name first before adding items</strong>
                         </div>
@@ -3329,6 +3349,7 @@
             const addRowHtml = `
                 ${noticeRow}
                 <tr id="inlineAddRow" class="add-row" style="background: #1a1a1a;">
+                    <td class="drag-handle-cell" style="width: 30px; text-align: center; color: var(--text-muted); opacity: 0.3;">-</td>
                     <td class="check-cell">-</td>
                     <td class="check-cell">+</td>
                     <td><input type="text" id="inlineName" placeholder="${addDisabled ? 'Enter batch name first' : 'Subitem name'}" style="width:100%;padding:6px;font-size:0.85rem;" ${addDisabled ? 'disabled' : ''}></td>
@@ -3420,7 +3441,10 @@
             document.getElementById('progressPercent').textContent = `${pct}%`;
 
             tbody.innerHTML = items.map((item, i) => `
-                <tr class="${item.checked ? 'checked' : ''}">
+                <tr class="${item.checked ? 'checked' : ''}" draggable="true" data-index="${i}" ondragstart="rowDragStart(event, ${i})" ondragover="rowDragOver(event, ${i})" ondragleave="rowDragLeave(event)" ondragend="rowDragEnd(event)" ondrop="rowDrop(event, ${i})">
+                    <td class="drag-handle-cell" style="cursor: grab; width: 30px; text-align: center; color: var(--text-muted);" title="Drag to reorder">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: block; margin: 0 auto; opacity: 0.4;"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+                    </td>
                     <td class="check-cell">
                         <input type="checkbox" ${item.selected ? 'checked' : ''} onchange="toggleSelect(${item.id})" title="Select this item for gap calculation">
                     </td>
@@ -3454,6 +3478,65 @@
                 initDatePicker('inline');
                 initTimePicker('inline');
             }, 0);
+        }
+
+        let draggedRowIndex = null;
+
+        function rowDragStart(e, index) {
+            draggedRowIndex = index;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', index);
+            e.currentTarget.classList.add('dragging');
+        }
+
+        function rowDragOver(e, index) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            const row = e.currentTarget;
+            if (index === draggedRowIndex) return;
+
+            const rect = row.getBoundingClientRect();
+            const mouseY = e.clientY - rect.top;
+            const hoverMiddle = rect.height / 2;
+
+            row.classList.remove('drag-over-top', 'drag-over-bottom');
+            if (mouseY < hoverMiddle) {
+                row.classList.add('drag-over-top');
+            } else {
+                row.classList.add('drag-over-bottom');
+            }
+        }
+
+        function rowDragLeave(e) {
+            e.currentTarget.classList.remove('drag-over-top', 'drag-over-bottom');
+        }
+
+        function rowDragEnd(e) {
+            e.currentTarget.classList.remove('dragging', 'drag-over-top', 'drag-over-bottom');
+            document.querySelectorAll('#tableBody tr').forEach(row => {
+                row.classList.remove('drag-over-top', 'drag-over-bottom', 'dragging');
+            });
+        }
+
+        async function rowDrop(e, index) {
+            e.preventDefault();
+            const row = e.currentTarget;
+            row.classList.remove('drag-over-top', 'drag-over-bottom');
+            
+            if (draggedRowIndex === null || draggedRowIndex === index) return;
+
+            const draggedItem = items[draggedRowIndex];
+            
+            // Remove from old position
+            items.splice(draggedRowIndex, 1);
+            
+            // Insert into new position
+            items.splice(index, 0, draggedItem);
+            
+            await save();
+            render();
+            showToast('Reordered checklist!');
+            draggedRowIndex = null;
         }
 
         async function addInline() {
