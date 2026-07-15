@@ -1879,8 +1879,8 @@
                     </svg>
                 </button>
                 <button class="profile-button" id="profileBtn" onclick="openUserManagement()" aria-label="Open profile settings">
-                    <span class="profile-avatar">K</span>
-                    <span class="profile-text">Settings</span>
+                    <span class="profile-avatar" id="userAvatar">K</span>
+                    <span class="profile-text" id="userDisplay">Settings</span>
                 </button>
                 <button class="logout-btn" onclick="logoutUser()">
                     <div class="sign">
@@ -2350,6 +2350,17 @@
                     return false;
                 }
                 document.getElementById('userDisplay').textContent = data.user.name;
+                const avatarEl = document.getElementById('userAvatar');
+                if (avatarEl && data.user.name) {
+                    const parts = data.user.name.trim().split(/\s+/);
+                    let initials = '?';
+                    if (parts.length === 1) {
+                        initials = parts[0].charAt(0).toUpperCase();
+                    } else if (parts.length > 1) {
+                        initials = (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+                    }
+                    avatarEl.textContent = initials;
+                }
                 const adminEmails = ['paul.valencia@247ga.co', 'firspointchl', 'paulvalencia@ga.co', 'jbdelrosario@ga.co', 'khentagustin@ga.co'];
                 if (adminEmails.includes((data.user.email || '').toLowerCase())) {
                     document.getElementById('usersBtn').style.display = '';

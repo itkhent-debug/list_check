@@ -39,7 +39,7 @@ $picture = $payload['picture'] ?? '';
 
 // Validate email domain
 $domain = substr(strrchr($email, '@'), 1);
-if ($domain !== '247ga.co') {
+if ($domain !== '247ga.co' && $domain !== 'ga.co') {
     header('Location: ../login.html?error=invalid_domain');
     exit;
 }
@@ -77,6 +77,24 @@ if ($user) {
     $userId = $conn->insert_id;
 }
 
+// Generate token
+$token = bin2hex(random_bytes(32));
+$expires = date('Y-m-d H:i:s', strtotime('+30 days'));
+
+// Insert token into auth_tokens table
+$tStmt = $conn->prepare("INSERT INTO auth_tokens (token, user_id, user_email, user_name, expires_at) VALUES (?, ?, ?, ?, ?)");
+$tStmt->bind_param('sisss', $token, $userId, $email, $name, $expires);
+$tStmt->execute();
+
+// Also set cookie crm_token
+setcookie('crm_token', $token, [
+    'expires' => time() + (30 * 24 * 60 * 60),
+    'path' => '/',
+    'secure' => true,
+    'httponly' => false,
+    'samesite' => 'Lax'
+]);
+
 // Set session
 $_SESSION['user_id'] = $userId;
 $_SESSION['user_email'] = $email;
@@ -84,8 +102,15 @@ $_SESSION['user_name'] = $name;
 $_SESSION['user_picture'] = $picture;
 
 $conn->close();
-
-// Redirect to main app
-header('Location: ../index.html');
-exit;
 ?>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Logging in...</title>
+    <script>
+        localStorage.setItem('crm_token', '<?php echo $token; ?>');
+        window.location.replace('../index.html');
+    </script>
+</head>
+</body>
+</html>
