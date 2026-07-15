@@ -495,20 +495,17 @@
 
         // Google Sign-In redirect initiation
         document.getElementById('googleBtn').addEventListener('click', function() {
-            const clientId = '326291537602-3hkauop1u7go6qik6tntlsivq8frgb5j.apps.googleusercontent.com';
+            const clientId = '232659565274-11l783qin4gelt1i4jl892ughru6iv0o.apps.googleusercontent.com';
             
-            // The exact redirect URI registered in Google Console for this Client ID
-            const redirectUri = encodeURIComponent('https://efferent-abrupt-rosella.ngrok-free.dev/CRM-CHECKLIST/api/google_callback.php');
+            // Generate redirect URI dynamically based on current browser origin
+            const currentPath = window.location.pathname;
+            const dirPath = currentPath.substring(0, currentPath.lastIndexOf('/'));
+            const redirectUri = encodeURIComponent(window.location.origin + dirPath + '/api/google_callback.php');
             
             const scope = encodeURIComponent('openid email profile');
             const nonce = Math.random().toString(36).substring(2);
             
-            // Pass the currently active site URL (origin + base path) in the state parameter
-            const currentPath = window.location.pathname;
-            const dirPath = currentPath.substring(0, currentPath.lastIndexOf('/'));
-            const state = encodeURIComponent(window.location.origin + dirPath + '/');
-            
-            const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=id_token&response_mode=form_post&scope=${scope}&nonce=${nonce}&state=${state}&prompt=select_account`;
+            const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=id_token&response_mode=form_post&scope=${scope}&nonce=${nonce}&prompt=select_account`;
             
             window.location.href = authUrl;
         });
