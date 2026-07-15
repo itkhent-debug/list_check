@@ -3168,17 +3168,18 @@
                 const filteredBatches = filterTagId 
                     ? batches.filter(b => b.tags && b.tags.some(t => t.id == filterTagId))
                     : batches;
-                
                 filteredBatches.forEach((batch) => {
-                    // Show tags with batch name if exists
+                    // Build colored tag chips (each tag keeps its own stable color)
+                    const tagChipsHtml = batch.tags && batch.tags.length > 0
+                        ? ' ' + batch.tags.map(t => `<span style="display:inline-block;background:${t.color};color:#fff;padding:1px 7px;border-radius:10px;font-size:0.75rem;font-weight:600;margin-left:2px;vertical-align:middle;">${t.name}</span>`).join('')
+                        : '';
                     const tagLabels = batch.tags && batch.tags.length > 0 
                         ? ` [${batch.tags.map(t => t.name).join(', ')}]` 
                         : '';
                     const displayName = batch.name + tagLabels;
                     const isSelected = batch.id == currentBatchId;
                     const selectedClass = isSelected ? 'selected' : '';
-                    const color = batch.tags && batch.tags.length > 0 ? `color:${batch.tags[0].color}` : '';
-                    html += `<div class="custom-select-option ${selectedClass}" data-value="${batch.id}" style="${color}" data-tooltip="${displayName}" onclick="event.stopPropagation(); selectBatch(${batch.id}, '${batch.name.replace(/'/g, "\\'")}${tagLabels.replace(/'/g, "\\'")}')">${displayName}</div>`;
+                    html += `<div class="custom-select-option ${selectedClass}" data-value="${batch.id}" data-tooltip="${displayName}" onclick="event.stopPropagation(); selectBatch(${batch.id}, '${batch.name.replace(/'/g, "\\'")}${tagLabels.replace(/'/g, "\\'")}')"><span style="vertical-align:middle;">${batch.name}</span>${tagChipsHtml}</div>`;
                 });
                 
                 // Show message if no batches with tag
@@ -3194,7 +3195,12 @@
                         const tagLabels = current.tags && current.tags.length > 0 
                             ? ` [${current.tags.map(t => t.name).join(', ')}]` 
                             : '';
-                        document.getElementById('batchSelectText').textContent = current.name + tagLabels;
+                        // Build colored chips for selected batch display
+                        const tagChipsHtml = current.tags && current.tags.length > 0
+                            ? ' ' + current.tags.map(t => `<span style="display:inline-block;background:${t.color};color:#fff;padding:1px 7px;border-radius:10px;font-size:0.75rem;font-weight:600;margin-left:2px;vertical-align:middle;">${t.name}</span>`).join('')
+                            : '';
+                        const selectTextEl = document.getElementById('batchSelectText');
+                        selectTextEl.innerHTML = `<span style="vertical-align:middle;">${current.name}</span>${tagChipsHtml}`;
                         document.getElementById('batchSelectValue').value = currentBatchId;
                     }
                 }
