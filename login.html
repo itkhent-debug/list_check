@@ -493,20 +493,54 @@
             }
         });
 
-        // Google Sign-In redirect initiation
-        document.getElementById('googleBtn').addEventListener('click', function() {
-            const clientId = '232659565274-11l783qin4gelt1i4jl892ughru6iv0o.apps.googleusercontent.com';
-            
-            // Fixed redirect URI matching Google Cloud Console registration
-            const redirectUri = encodeURIComponent('https://listcheck-production-c6f0.up.railway.app/api/google_callback.php');
-            
-            const scope = encodeURIComponent('openid email profile');
-            const nonce = Math.random().toString(36).substring(2);
-            
-            const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=id_token&response_mode=form_post&scope=${scope}&nonce=${nonce}&prompt=select_account`;
-            
-            window.location.href = authUrl;
+        // Google Sign-In using Google Identity Services (popup, no redirect_uri needed)
+        google.accounts.id.initialize({
+            client_id: '232659565274-11l783qin4gelt1i4jl892ughru6iv0o.apps.googleusercontent.com',
+            callback: handleGoogleCredential,
+            auto_select: false
         });
+
+        document.getElementById('googleBtn').addEventListener('click', function() {
+            google.accounts.id.prompt();
+        });
+
+        async function handleGoogleCredential(response) {
+            const googleBtn = document.getElementById('googleBtn');
+            googleBtn.disabled = true;
+            googleBtn.innerHTML = '<span>Signing in...</span>';
+
+            try {
+                const res = await fetch('/api/google_auth.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ credential: response.credential })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    localStorage.setItem('crm_token', data.token);
+                    window.location.href = '/index.html';
+                } else {
+                    const errorMsg = document.getElementById('errorMsg');
+                    if (data.error === 'invalid_domain') {
+                        errorMsg.textContent = 'Access denied. Only @247ga.co accounts are allowed.';
+                    } else if (data.error === 'account_deactivated') {
+                        errorMsg.textContent = 'Your account has been deactivated. Contact your admin.';
+                    } else {
+                        errorMsg.textContent = data.error || 'Google sign-in failed. Try again.';
+                    }
+                    errorMsg.style.display = 'block';
+                    googleBtn.disabled = false;
+                    googleBtn.innerHTML = '<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style="width:18px;height:18px;margin-right:8px;vertical-align:middle;"><span>Sign in with Google</span>';
+                }
+            } catch (err) {
+                const errorMsg = document.getElementById('errorMsg');
+                errorMsg.textContent = 'Network error during Google sign-in. Try again.';
+                errorMsg.style.display = 'block';
+                googleBtn.disabled = false;
+                googleBtn.innerHTML = '<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style="width:18px;height:18px;margin-right:8px;vertical-align:middle;"><span>Sign in with Google</span>';
+            }
+        }
     </script>
 </body>
 </html>
