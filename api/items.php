@@ -139,6 +139,24 @@ switch ($method) {
             sendResponse(['error' => 'Item ID is required'], 400);
         }
         
+        // Fetch item details for backup before deleting
+        $itemRes = $conn->query("SELECT * FROM items WHERE id = $id");
+        $itemObj = $itemRes->fetch_assoc();
+        if ($itemObj) {
+            $backupPayload = [
+                'batch_id' => (int)$itemObj['batch_id'],
+                'name' => $itemObj['name'],
+                'label' => $itemObj['label'],
+                'item_date' => $itemObj['item_date'],
+                'item_time' => substr($itemObj['item_time'], 0, 5),
+                'checked' => (int)$itemObj['checked'],
+                'time_ok' => (int)$itemObj['time_ok'],
+                'crm_ok' => (int)$itemObj['crm_ok'],
+                'sort_order' => (int)$itemObj['sort_order']
+            ];
+            createBackup($conn, $user, 'delete_item', $id, $backupPayload);
+        }
+        
         $stmt = $conn->prepare("DELETE FROM items WHERE id = ?");
         $stmt->bind_param("i", $id);
         

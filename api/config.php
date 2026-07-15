@@ -217,12 +217,31 @@ function getConnection() {
             detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )");
 
+        $conn->query("CREATE TABLE IF NOT EXISTS user_backups (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_email VARCHAR(255) NOT NULL,
+            action_type VARCHAR(50) NOT NULL,
+            target_id INT NOT NULL,
+            backup_data LONGTEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )");
+
         return $conn;
     } catch (Exception $e) {
         header('Content-Type: application/json');
         http_response_code(500);
         die(json_encode(['error' => 'Database connection failed: ' . $e->getMessage()]));
     }
+}
+
+// Create backup entry
+function createBackup($conn, $user, $actionType, $targetId, $backupData) {
+    $email = $conn->real_escape_string($user['user_email'] ?? '');
+    $action = $conn->real_escape_string($actionType);
+    $tid = (int)$targetId;
+    $data = $conn->real_escape_string(json_encode($backupData));
+    $conn->query("INSERT INTO user_backups (user_email, action_type, target_id, backup_data)
+                  VALUES ('$email', '$action', $tid, '$data')");
 }
 
 // Get current user from DB token

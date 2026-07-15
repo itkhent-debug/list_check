@@ -1997,6 +1997,7 @@
                     <button class="btn btn-secondary" onclick="copyAll()" title="Copy all items">Copy All</button>
                     <button class="btn btn-secondary" onclick="calculateSelectedGap()" title="Calculate gap">Gap Calc <span id="selectionCount" style="background:#3b82f6;padding:2px 6px;border-radius:10px;margin-left:4px;font-size:0.7rem;display:none;">0</span></button>
                     <button class="btn btn-secondary" onclick="viewWorkflowGaps()" title="View workflow gaps">Workflow Gaps</button>
+                    <button id="undoBtn" class="btn btn-secondary" onclick="undoLastAction()" title="Undo last change" style="display:none;border-left:2px solid #f59e0b;color:#f59e0b;">↩ Undo</button>
                     <button class="btn btn-danger" onclick="clearAll()" title="Clear all items">Clear All</button>
                 </div>
 
@@ -3139,6 +3140,7 @@
                 name: currentBatchName,
                 items: items
             });
+            checkUndoButton();
         }
 
         // Batch Management Functions
@@ -3325,6 +3327,7 @@
             
             await loadBatchList();
             showToast(`Batch "${batchName}" deleted!`);
+            checkUndoButton();
         }
 
         async function newBatch() {
@@ -3893,6 +3896,7 @@
             render();
             closeDeleteModal();
             showToast('Item deleted!');
+            checkUndoButton();
         }
 
         async function clearAll() {
@@ -3961,6 +3965,59 @@
                 render();
                 closeEditModal();
                 showToast('Item updated!');
+            }
+        }
+
+        // --- Undo / Revert System ---
+        let lastBackups = [];
+
+        async function checkUndoButton() {
+            try {
+                if (!localStorage.getItem('crm_token')) {
+                    document.getElementById('undoBtn').style.display = 'none';
+                    return;
+                }
+                const backups = await api('backups.php');
+                if (Array.isArray(backups) && backups.length > 0) {
+                    lastBackups = backups;
+                    document.getElementById('undoBtn').style.display = '';
+                    document.getElementById('undoBtn').title = `Undo last change: ${backups[0].description}`;
+                } else {
+                    lastBackups = [];
+                    document.getElementById('undoBtn').style.display = 'none';
+                }
+            } catch (err) {
+                console.error('Error loading backups:', err);
+                document.getElementById('undoBtn').style.display = 'none';
+            }
+        }
+
+        async function undoLastAction() {
+            if (lastBackups.length === 0) return;
+            const lastBackup = lastBackups[0];
+            
+            const res = await api('backups.php', 'POST', { id: lastBackup.id });
+            if (res && !res.error) {
+                showToast(`Reverted: ${lastBackup.description}`, 'success');
+                
+                await loadBatchList();
+                
+                if (res.batch_id) {
+                    document.getElementById('batchSelectValue').value = res.batch_id;
+                    const batches = await api('batches.php');
+                    const restoredBatch = batches.find(b => b.id == res.batch_id);
+                    if (restoredBatch) {
+                        const tagLabels = restoredBatch.tags && restoredBatch.tags.length > 0 
+                            ? ` [${restoredBatch.tags.map(t => t.name).join(', ')}]` 
+                            : '';
+                        selectBatch(res.batch_id, restoredBatch.name + tagLabels);
+                    } else {
+                        await loadBatch();
+                    }
+                }
+                await checkUndoButton();
+            } else {
+                showToast(res.error || 'Failed to revert last action', 'danger');
             }
         }
 
@@ -4565,6 +4622,7 @@
             logVisitor();
             initDatePicker('edit');
             initTimePicker('edit');
+            await checkUndoButton();
         }
         init();
     </script>

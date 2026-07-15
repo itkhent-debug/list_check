@@ -97,6 +97,31 @@ switch ($method) {
             sendResponse(['error' => 'Batch ID is required'], 400);
         }
         
+        // Fetch current items for backup before updating
+        $iRes = $conn->query("SELECT * FROM items WHERE batch_id = $id ORDER BY sort_order, id");
+        $oldItems = [];
+        while ($iRow = $iRes->fetch_assoc()) {
+            $oldItems[] = [
+                'name' => $iRow['name'],
+                'label' => $iRow['label'],
+                'item_date' => $iRow['item_date'],
+                'item_time' => substr($iRow['item_time'], 0, 5),
+                'checked' => (int)$iRow['checked'],
+                'time_ok' => (int)$iRow['time_ok'],
+                'crm_ok' => (int)$iRow['crm_ok'],
+                'sort_order' => (int)$iRow['sort_order']
+            ];
+        }
+        $bRes = $conn->query("SELECT name FROM batches WHERE id = $id");
+        $bRow = $bRes->fetch_assoc();
+        $oldName = $bRow ? $bRow['name'] : '';
+        
+        $backupPayload = [
+            'name' => $oldName,
+            'items' => $oldItems
+        ];
+        createBackup($conn, $user, 'change_batch', $id, $backupPayload);
+        
         // Update batch name
         $stmt = $conn->prepare("UPDATE batches SET name = ? WHERE id = ?");
         $stmt->bind_param("si", $name, $id);
@@ -131,6 +156,44 @@ switch ($method) {
         
         if ($id <= 0) {
             sendResponse(['error' => 'Batch ID is required'], 400);
+        }
+        
+        // Fetch batch details first for backup
+        $bRes = $conn->query("SELECT * FROM batches WHERE id = $id");
+        $batchObj = $bRes->fetch_assoc();
+        if ($batchObj) {
+            // Get tags
+            $tRes = $conn->query("SELECT tag_id FROM batch_tags WHERE batch_id = $id");
+            $tagIds = [];
+            while ($tRow = $tRes->fetch_assoc()) {
+                $tagIds[] = (int)$tRow['tag_id'];
+            }
+            // Get items
+            $iRes = $conn->query("SELECT * FROM items WHERE batch_id = $id ORDER BY sort_order, id");
+            $itemsList = [];
+            while ($iRow = $iRes->fetch_assoc()) {
+                $itemsList[] = [
+                    'name' => $iRow['name'],
+                    'label' => $iRow['label'],
+                    'item_date' => $iRow['item_date'],
+                    'item_time' => substr($iRow['item_time'], 0, 5),
+                    'checked' => (int)$iRow['checked'],
+                    'time_ok' => (int)$iRow['time_ok'],
+                    'crm_ok' => (int)$iRow['crm_ok'],
+                    'sort_order' => (int)$iRow['sort_order']
+                ];
+            }
+            $backupPayload = [
+                'name' => $batchObj['name'],
+                'workflow_name' => $batchObj['workflow_name'],
+                'assigned_to' => $batchObj['assigned_to'],
+                'organization' => $batchObj['organization'],
+                'casino_name' => $batchObj['casino_name'],
+                'campaign_dates' => $batchObj['campaign_dates'],
+                'tags' => $tagIds,
+                'items' => $itemsList
+            ];
+            createBackup($conn, $user, 'delete_batch', $id, $backupPayload);
         }
         
         $stmt = $conn->prepare("DELETE FROM batches WHERE id = ?");
