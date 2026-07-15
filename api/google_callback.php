@@ -10,22 +10,9 @@ $conn->query("ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(5
 
 // Get the credential from POST (Google sends it as 'credential' or 'id_token')
 $credential = $_POST['credential'] ?? $_POST['id_token'] ?? '';
-$state = $_POST['state'] ?? '';
-$targetOrigin = '../'; // Fallback to relative parent path
-
-if (!empty($state)) {
-    $parsed = parse_url($state);
-    $host = $parsed['host'] ?? '';
-    // Security check: only allow localhost, 127.0.0.1, ngrok, or railway.app domains
-    if ($host === 'localhost' || $host === '127.0.0.1' || 
-        strpos($host, 'ngrok-free.dev') !== false || 
-        strpos($host, 'railway.app') !== false) {
-        $targetOrigin = rtrim($state, '/') . '/';
-    }
-}
 
 if (empty($credential)) {
-    header('Location: ' . $targetOrigin . 'login.html?error=no_credential');
+    header('Location: ../login.html?error=no_credential');
     exit;
 }
 
@@ -122,7 +109,7 @@ $conn->close();
     <title>Logging in...</title>
     <script>
         localStorage.setItem('crm_token', '<?php echo $token; ?>');
-        window.location.replace('<?php echo $targetOrigin; ?>index.html');
+        window.location.replace('../index.html');
     </script>
 </head>
 <body>
