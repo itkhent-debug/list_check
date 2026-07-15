@@ -497,10 +497,8 @@
         document.getElementById('googleBtn').addEventListener('click', function() {
             const clientId = '232659565274-11l783qin4gelt1i4jl892ughru6iv0o.apps.googleusercontent.com';
             
-            // Generate redirect URI dynamically based on current browser origin
-            const currentPath = window.location.pathname;
-            const dirPath = currentPath.substring(0, currentPath.lastIndexOf('/'));
-            const redirectUri = encodeURIComponent(window.location.origin + dirPath + '/api/google_callback.php');
+            // Fixed redirect URI matching Google Cloud Console registration
+            const redirectUri = encodeURIComponent('https://listcheck-production-c6f0.up.railway.app/api/google_callback.php');
             
             const scope = encodeURIComponent('openid email profile');
             const nonce = Math.random().toString(36).substring(2);
