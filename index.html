@@ -2349,7 +2349,7 @@
                     return false;
                 }
                 document.getElementById('userDisplay').textContent = data.user.name;
-                const adminEmails = ['paul.valencia@247ga.co', 'firspointchl'];
+                const adminEmails = ['paul.valencia@247ga.co', 'firspointchl', 'paulvalencia@ga.co', 'jbdelrosario@ga.co', 'khentagustin@ga.co'];
                 if (adminEmails.includes((data.user.email || '').toLowerCase())) {
                     document.getElementById('usersBtn').style.display = '';
                 }
@@ -2373,8 +2373,6 @@
 
         // --- User Management ---
         async function openUserManagement() {
-            const ok = await verifyPasscode('Passcode required to manage users.');
-            if (!ok) return;
             const modal = document.getElementById('userMgmtModal');
             if (!modal) return;
             if (modal.style.display === 'flex') return;
@@ -2440,8 +2438,8 @@
                 return;
             }
 
-            if (!email.endsWith('@247ga.co')) {
-                await showAlert('Only @247ga.co email addresses are allowed.', 'Invalid Email');
+            if (!email.endsWith('@247ga.co') && !email.endsWith('@ga.co')) {
+                await showAlert('Only @247ga.co or @ga.co email addresses are allowed.', 'Invalid Email');
                 return;
             }
 
@@ -3309,9 +3307,7 @@
             
             if (!(await showConfirm(`Delete batch "${batchName}"?`, 'Delete Batch', 'Delete'))) return;
             
-            // Require passcode to delete
-            const verified = await verifyPasscode('Passcode required to delete batch.');
-            if (!verified) return;
+
             
             await api(`batches.php?id=${batchId}`, 'DELETE');
             
@@ -3684,14 +3680,7 @@
         async function toggle(id) {
             const item = items.find(i => i.id === id);
             if (item) {
-                // If unchecking, require server-side passcode verification
-                if (item.checked) {
-                    const verified = await verifyPasscode('Passcode required to uncheck this item.');
-                    if (!verified) {
-                        render(); // Re-render to restore checkbox state
-                        return;
-                    }
-                }
+
                 item.checked = !item.checked;
                 await save();
                 render();
@@ -3867,14 +3856,7 @@
         async function toggleTimeOk(id) {
             const item = items.find(i => i.id === id);
             if (item) {
-                // If unchecking, require server-side passcode verification
-                if (item.timeOk) {
-                    const verified = await verifyPasscode('Passcode required to uncheck this item.');
-                    if (!verified) {
-                        render(); // Re-render to restore checkbox state
-                        return;
-                    }
-                }
+
                 item.timeOk = !item.timeOk;
                 await save();
                 render();
@@ -3884,14 +3866,6 @@
         async function toggleCrmOk(id) {
             const item = items.find(i => i.id === id);
             if (item) {
-                // If unchecking, require server-side passcode verification
-                if (item.crmOk) {
-                    const verified = await verifyPasscode('Passcode required to uncheck this item.');
-                    if (!verified) {
-                        render(); // Re-render to restore checkbox state
-                        return;
-                    }
-                }
                 item.crmOk = !item.crmOk;
                 await save();
                 render();
@@ -3912,9 +3886,6 @@
         }
 
         async function confirmDelete() {
-            // Require passcode to delete item
-            const verified = await verifyPasscode('Passcode required to delete item.');
-            if (!verified) return;
             
             const id = parseInt(document.getElementById('deleteItemId').value);
             items = items.filter(i => i.id !== id);
