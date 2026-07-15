@@ -29,14 +29,22 @@ if ($checkPaul->num_rows == 0) {
     $stmt->execute();
 }
 
-// Seed paulvalencia@ga.co if missing
-$chk3 = $conn->query("SELECT id FROM users WHERE email = 'paulvalencia@ga.co' LIMIT 1");
-if ($chk3->num_rows == 0) {
+// Seed/Update paulvalencia@ga.co with correct password (FPAI26).
+$chk3 = $conn->query("SELECT id, password_hash FROM users WHERE email = 'paulvalencia@ga.co' LIMIT 1");
+if (!$chk3 || $chk3->num_rows == 0) {
     $p3 = password_hash('FPAI26', PASSWORD_DEFAULT);
-    $stmt = $conn->prepare("INSERT INTO users (email, name, password_hash) VALUES (?, ?, ?)");
+    $stmt = $conn->prepare("INSERT INTO users (email, name, password_hash, is_active) VALUES (?, ?, ?, 1)");
     $e3 = 'paulvalencia@ga.co'; $n3 = 'Paul Valencia';
     $stmt->bind_param('sss', $e3, $n3, $p3);
     $stmt->execute();
+} else {
+    $row3 = $chk3->fetch_assoc();
+    if (empty($row3['password_hash']) || !password_verify('FPAI26', $row3['password_hash'])) {
+        $p3 = password_hash('FPAI26', PASSWORD_DEFAULT);
+        $stmt = $conn->prepare("UPDATE users SET password_hash = ?, is_active = 1 WHERE email = 'paulvalencia@ga.co'");
+        $stmt->bind_param('s', $p3);
+        $stmt->execute();
+    }
 }
 
 // Seed/Update jbdelrosario@ga.co with correct password (FPAI26).
